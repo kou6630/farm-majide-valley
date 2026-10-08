@@ -28,8 +28,8 @@
   // 取り込んだ絵(assets/ref/*.png)と、自作の絵(assets/*/*.svg)
   const REF = ['g_a0', 'g_a1', 'g_a2', 'g_a3', 'g_a4', 'g_a5', 'g_a6', 'g_a7', 'g_a8', 'g_b0', 'g_b1', 'g_b2', 'g_b3', 'g_b4', 'g_b5', 'g_b6',
     'g_tactical_light', 'g_tactical_dark',
-    'road_a', 'road_b', 'road_c', 'pond_a', 'pond_b', 'pond_c', 'tile_cloud_tactical', 'market', 'dairy', 'bakery', 'house', 'barn', 'windmill', 'lamp',
-    'tree', 'tree_2', 'tree_3', 'bush_a', 'coin', 'bolt', 'crown', 'clock', 'gem'];
+    'tactical_road', 'tactical_tree', 'tactical_bush', 'tactical_house', 'tactical_barn', 'tactical_windmill', 'tactical_lamp', 'tactical_pond',
+    'tile_cloud_tactical', 'market', 'dairy', 'bakery', 'coin', 'bolt', 'crown', 'clock', 'gem'];
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
   function assetNames() {
     const n = [];
@@ -57,6 +57,9 @@
       im.src = `assets/${name}.${name.startsWith('ui/tactical/') ? 'svg' : 'png'}`;
       imgs[name] = im;
     }))).then(() => {
+      // 外周の景観だけを差し替える。ショップ・アイテム・市松タイルは別の素材。
+      Object.entries({ house: 'house', barn: 'barn', windmill: 'windmill', lamp: 'lamp', tree: 'tree', tree_2: 'tree', tree_3: 'tree', bush_a: 'bush' })
+        .forEach(([alias, name]) => { imgs['ref/' + alias] = imgs['ref/tactical_' + name]; });
       Object.entries({ coin: 'coin', energy: 'bolt', gems: 'gem', crown: 'rank', lock: 'lock', worker: 'worker', clock: 'clock' })
         .forEach(([alias, name]) => { imgs['ui/' + alias] = imgs['ui/tactical/' + name]; });
       // HUDに重ねる手描きの絵と、飛び込む報酬の絵を揃える。
@@ -120,7 +123,7 @@
         const k = key(...edge.a); if (!edgesFrom.has(k)) edgesFrom.set(k, []); edgesFrom.get(k).push(edge);
       });
     });
-    // 道全体の輪郭をつなぎ、草地側の角を丸める。畑の側はマスにぴったり合わせる。
+    // 道の草地側だけ小さく面取りし、畑の側はマスにぴったり合わせる。
     const visitedEdges = new Set();
     roadEdges.forEach((first) => {
       if (visitedEdges.has(first)) return;
@@ -132,11 +135,11 @@
       }
       const rounded = loop.map((e, i) => {
         const prev = loop[(i + loop.length - 1) % loop.length], p = proj(...e.a), a = proj(...prev.a), b = proj(...e.b);
-        const radius = prev.soft && e.soft ? 0.48 : 0;
+        const radius = prev.soft && e.soft ? 0.18 : 0;
         return { p, in: [lerp(p[0], a[0], radius), lerp(p[1], a[1], radius)], out: [lerp(p[0], b[0], radius), lerp(p[1], b[1], radius)] };
       });
       roadPath.moveTo(...rounded[0].in);
-      rounded.forEach((p) => { roadPath.lineTo(...p.in); roadPath.quadraticCurveTo(...p.p, ...p.out); }); roadPath.closePath();
+      rounded.forEach((p) => { roadPath.lineTo(...p.in); roadPath.lineTo(...p.out); }); roadPath.closePath();
     });
     const cloudShapes = new Map();
     LANDS.forEach((land) => {
@@ -577,7 +580,27 @@
     function grassKind(c, r) {
       return (c + r) % 2 === 0 ? 'g_tactical_light' : 'g_tactical_dark';
     }
-    const roadKind = (c, r) => !roadSet.has(key(c, r + 1)) && !landCells.has(key(c, r + 1)) ? 'road_b' : hash(c, r, 5) % 2 ? 'road_a' : 'road_c';
+    // 道は連続した舗装。マスの明暗を持つプレイ用タイルとは分ける。
+    const roadKind = () => 'tactical_road';
+
+    function drawLandscape(vx0, vy0, vx1, vy1) {
+      const g = ctx.createLinearGradient(0, BOUND.y0, 0, BOUND.y1);
+      g.addColorStop(0, '#668378'); g.addColorStop(1, '#4d6e65');
+      ctx.fillStyle = g; ctx.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0);
+      // 市松に見えない、大きさも形も不揃いな草地の淡い塗り面。
+      ctx.save();
+      for (let row = Math.floor(vy0 / 190); row <= Math.ceil(vy1 / 190); row++) {
+        for (let col = Math.floor(vx0 / 310); col <= Math.ceil(vx1 / 310); col++) {
+          const seed = hash(col, row, 21), x = col * 310 + seed % 137, y = row * 190 + (seed >>> 8) % 83;
+          const w = 180 + seed % 220, h = 65 + (seed >>> 12) % 90;
+          ctx.globalAlpha = 0.035 + (seed % 4) * 0.012;
+          ctx.fillStyle = seed % 2 ? '#cad4b0' : '#203f41';
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w * 0.6, y - h * 0.4);
+          ctx.lineTo(x + w, y + h * 0.35); ctx.lineTo(x + w * 0.4, y + h); ctx.closePath(); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
     function drawTile(c, r, kind, now, wide = 1, dy = 0) {
       const [x, y] = tileTop(c, r);
       let s = 1;
@@ -637,7 +660,7 @@
 
     function draw(now, t) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = '#6aa73a'; ctx.fillRect(0, 0, vw, vh);
+      ctx.fillStyle = '#55756b'; ctx.fillRect(0, 0, vw, vh);
       const sh = shake > 0.3 ? [(Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake] : [0, 0];
       ctx.save();
       ctx.translate(vw / 2 + sh[0], vh / 2 + sh[1]); ctx.scale(cam.zoom, cam.zoom); ctx.translate(-cam.x, -cam.y);
@@ -645,26 +668,33 @@
       const vy0 = cam.y - vh / 2 / cam.zoom - 260, vy1 = cam.y + vh / 2 / cam.zoom + 120;
       const inView = (x, y, pad = 0) => x > vx0 - pad && x < vx1 + pad && y > vy0 - pad && y < vy1 + pad;
 
-      // 草地の下地
-      const g = ctx.createLinearGradient(0, BOUND.y0, 0, BOUND.y1);
-      g.addColorStop(0, '#74a640'); g.addColorStop(1, '#6ca23b');
-      ctx.fillStyle = g; ctx.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0);
+      drawLandscape(vx0, vy0, vx1, vy1);
 
       // 池(地面に張り付くもの)
       DECOR.filter((d) => d.key === 'pond').forEach((d) => {
-        const [pc, pr, pw, ph] = d.rect;
-        for (let y = pr; y < pr + ph; y++) for (let x = pc; x < pc + pw; x++) {
-          const q = [[1, 1, 'pond_a'], [2, 1, 'pond_b'], [1, 2, 'pond_c']].find((e) => e[0] === x - pc && e[1] === y - pr);
-          drawTile(x, y, q ? q[2] : grassKind(x, y), now);
-        }
+        const [pc, pr, pw, ph] = d.rect, [x, y] = proj(pc + pw / 2, pr + ph / 2);
+        const im = imgs['ref/tactical_pond'];
+        if (!ready(im)) return;
+        const w = (pw + ph) * HW * 0.8, h = im.naturalHeight * w / im.naturalWidth;
+        ctx.drawImage(im, x - w / 2, y - h / 2, w, h);
       });
 
       // 道
-      ctx.save(); ctx.clip(roadPath);
-      // 丸めた曲がり角の下地。上には元の道タイルの質感を重ねる。
-      ctx.fillStyle = '#e7ad55'; ctx.fill(roadPath);
+      // 細い縁石と接地影で舗装を草地につなぐ。
+      ctx.save(); ctx.lineJoin = 'bevel'; ctx.translate(0, 3);
+      ctx.strokeStyle = '#304b4d'; ctx.lineWidth = 10; ctx.stroke(roadPath); ctx.restore();
+      ctx.save(); ctx.lineJoin = 'bevel'; ctx.strokeStyle = '#a1b3b1'; ctx.lineWidth = 5; ctx.stroke(roadPath);
+      ctx.clip(roadPath); ctx.fillStyle = '#819499'; ctx.fill(roadPath);
       roadCells.forEach(([c, r]) => { const [x, y] = tileTop(c, r); if (inView(x, y, 160)) drawTile(c, r, roadKind(c, r), now); });
       ctx.restore();
+      ctx.save(); ctx.strokeStyle = '#cc8a7e'; ctx.lineWidth = 3;
+      roadEdges.forEach((edge) => {
+        if (!edge.soft || hash(...edge.a, 23) % 13) return;
+        const a = proj(...edge.a), b = proj(...edge.b);
+        if (!inView(...a, 160)) return;
+        ctx.beginPath(); ctx.moveTo(lerp(a[0], b[0], 0.22), lerp(a[1], b[1], 0.22));
+        ctx.lineTo(lerp(a[0], b[0], 0.4), lerp(a[1], b[1], 0.4)); ctx.stroke();
+      }); ctx.restore();
 
       // 土地のタイル(奥から手前へ)
       const tiles = [];
@@ -730,15 +760,16 @@
         list.push({ d: f2.depth, fn: () => {
           const im = imgs[f2.img]; if (!ready(im)) return;
           ctx.save(); ctx.translate(f2.x, f2.y);
-          ctx.fillStyle = 'rgba(36,67,23,.12)'; ctx.beginPath(); ctx.ellipse(0, 0, f2.w * 0.24, f2.w * 0.065, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(22,45,48,.16)'; ctx.beginPath(); ctx.ellipse(0, 0, f2.w * 0.24, f2.w * 0.065, 0, 0, Math.PI * 2); ctx.fill();
           if (f2.mirror) ctx.scale(-1, 1);
-          ctx.drawImage(im, -f2.ax, -f2.ay, f2.w, f2.h); ctx.restore();
+          const h = im.naturalHeight * f2.w / im.naturalWidth;
+          ctx.drawImage(im, -f2.ax, -h * (f2.img === 'ref/bush_a' ? 0.92 : 0.95), f2.w, h); ctx.restore();
         } });
       });
       DECOR.filter((d) => d.key !== 'pond').forEach((d) => {
         const [c, r, w, h] = d.rect;
         list.push({ d: c + w + r + h - 0.3, fn: () => {
-          if (d.key === 'lamp') { const [x, y] = tileFeet(c, r); const im = imgs['ref/lamp']; if (ready(im)) ctx.drawImage(im, x - 22, y - 92, 44, im.naturalHeight * 44 / im.naturalWidth); }
+          if (d.key === 'lamp') { const [x, y] = tileFeet(c, r); const im = imgs['ref/lamp']; if (ready(im)) { const w = 30, h = im.naturalHeight * w / im.naturalWidth; ctx.drawImage(im, x - w / 2, y - h * 0.95, w, h); } }
           else drawAnchored(d.key, d.rect);
         } });
       });
