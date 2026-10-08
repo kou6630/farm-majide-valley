@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2f5e1c">
+<title>ファームまじでValley</title>
+<link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/png" href="assets/ref/crown.png">
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div id="hud">
+  <div class="hud-left">
+    <div id="medal" class="medal">
+      <img class="medal-bg" src="assets/ref/medal.png" alt="">
+      <img class="medal-crown" src="assets/ref/crown.png" alt="">
+      <span id="level-num">1</span>
+    </div>
+    <div class="xp-wrap">
+      <div class="xp-bar"><div id="xp-fill" class="xp-fill"></div></div>
+      <div id="xp-text" class="xp-text">0/0</div>
+    </div>
+  </div>
+  <div class="hud-right">
+    <div class="hud-row">
+      <div id="coin-pill" class="pill">
+        <img src="assets/ref/coin.png" alt="コイン">
+        <span id="coin-num">0</span>
+      </div>
+      <div id="gem-pill" class="pill">
+        <img src="assets/ref/gem.png" alt="ジェム">
+        <span id="gem-num">0</span>
+      </div>
+    </div>
+    <div id="energy-pill" class="pill small">
+      <img src="assets/ref/bolt.png" alt="エネルギー">
+      <span id="energy-num">50</span><small>/50</small>
+      <em id="energy-timer"></em>
+    </div>
+  </div>
+</div>
+
+<div id="side">
+  <button id="btn-reset" class="round-btn" aria-label="最初から">⟲</button>
+</div>
+
+<div id="regrow" class="regrow hidden">
+  <div class="rg-head">回復中</div>
+  <div class="rg-time"><img src="assets/ref/clock.png" alt=""><b id="rg-time">0M 0S</b></div>
+  <button id="rg-skip" class="rg-skip"><img src="assets/ref/gem.png" alt=""><b id="rg-cost">0</b></button>
+</div>
+
+<button id="worker-chip" class="worker-btn" aria-label="作業者"><img src="assets/ref/hardhat.png" alt=""><span id="worker-text">0/1</span></button>
+
+<div id="workers" class="workers hidden">
+  <h2 id="wk-title">作業者が足りません!</h2>
+  <div class="wk-face"><img src="assets/ref/foreman.png" alt=""></div>
+  <div class="wk-count" id="wk-count">0/1</div>
+  <p class="wk-msg">14日間、作業者をもう1人借りよう!</p>
+  <button id="wk-rent" class="wk-price"><img src="assets/ref/gem.png" alt=""><b id="wk-gems">225</b></button>
+  <button id="wk-close" class="wk-later">今はやめる</button>
+  <p class="wk-note" id="wk-note"></p>
+</div>
+
+<div id="tutor" class="tutor">
+  <div class="tutor-bubble"><span id="tutor-text"></span></div>
+  <img class="tutor-face" src="assets/ref/francine.png" alt="">
+</div>
+
+<div id="bottom">
+  <div class="crate-wrap">
+    <button id="crate-btn" class="crate-btn" aria-label="箱を開ける">
+      <img src="assets/ref/crate_btn.png" alt="">
+    </button>
+    <div class="crate-label"><b id="crate-count">0/40</b><span id="crate-regen" class="crate-regen"><i>+5 :</i><em id="crate-timer"></em></span></div>
+    <img id="hand" class="hand" src="assets/ref/hand.png" alt="">
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div id="chest" class="chest-popup hidden" role="dialog" aria-labelledby="chest-title">
+  <button id="chest-close" class="chest-close" aria-label="閉じる">×</button>
+  <div id="chest-title" class="chest-title">宝箱</div>
+  <div class="chest-time"><img src="assets/ref/clock.png" alt="残り時間"><b id="chest-time"></b></div>
+  <div class="chest-key"><img id="chest-key" src="assets/ref/items/keys_0.png" alt="カギ"><b id="chest-count">0/2</b></div>
+  <button id="chest-open" class="chest-open">開ける</button>
+</div>
+
+<div id="panel" class="overlay hidden">
+  <div class="card ord-card">
+    <div class="ord-head">
+      <img class="ord-ico" src="assets/ref/orders.png" alt="">
+      <span id="ord-title">オーダー</span>
+      <button id="panel-close" class="card-close" aria-label="閉じる">×</button>
+    </div>
+    <div id="ord-tabs" class="ord-tabs"><button id="tab-order" class="on">オーダー</button><button id="tab-stock">素材</button></div>
+    <div id="panel-body" class="ord-body"></div>
+  </div>
+</div>
+
+<div id="cards" class="overlay hidden">
+  <div class="card">
+    <div class="card-head">
+      <img src="assets/ref/cards/frame_1.png" alt="">
+      <span>アップグレードカード</span>
+      <button id="cards-close" class="card-close" aria-label="閉じる">×</button>
+    </div>
+    <div class="card-body">
+      <p class="card-sub">収穫のときに、ときどきカードが出ます。使うと、その作物・動物の収穫が増えます</p>
+      <div id="cards-list" class="cards-list"></div>
+      <p class="card-note">星 1 を 3 枚で星 2、星 2 を 3 枚で星 3。星のカードは、1 つ上の星へとばして使うこともできます</p>
+    </div>
+  </div>
+</div>
+
+<div id="levelup" class="levelup hidden">
+  <div class="lu-medal"><img class="medal-bg" src="assets/ref/medal.png" alt=""><img class="medal-crown" src="assets/ref/crown.png" alt=""><b id="lu-level">2</b></div>
+  <h2>レベルアップ!</h2>
+  <p id="lu-sub" class="lu-sub">報酬</p>
+  <div id="lu-list" class="lu-list"></div>
+  <p class="lu-tap">タップして続ける</p>
+</div>
+
+<div id="loading" class="loading">
+  <img class="loading-img" src="assets/ref/loading.webp" alt="ファームまじでValley">
+  <div class="loading-box">
+    <div class="loading-bar"><div id="loading-fill"></div></div>
+    <div id="loading-text">読み込み中…</div>
+  </div>
+</div>
+
+<script src="js/layout.js"></script>
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
