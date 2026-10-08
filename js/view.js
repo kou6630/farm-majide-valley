@@ -28,7 +28,7 @@
   // 取り込んだ絵(assets/ref/*.png)と、自作の絵(assets/*/*.svg)
   const REF = ['g_a0', 'g_a1', 'g_a2', 'g_a3', 'g_a4', 'g_a5', 'g_a6', 'g_a7', 'g_a8', 'g_b0', 'g_b1', 'g_b2', 'g_b3', 'g_b4', 'g_b5', 'g_b6',
     'g_tactical_light', 'g_tactical_dark',
-    'road_a', 'road_b', 'road_c', 'pond_a', 'pond_b', 'pond_c', 'tile_cloud', 'market', 'dairy', 'bakery', 'house', 'barn', 'windmill', 'lamp',
+    'road_a', 'road_b', 'road_c', 'pond_a', 'pond_b', 'pond_c', 'tile_cloud_tactical', 'market', 'dairy', 'bakery', 'house', 'barn', 'windmill', 'lamp',
     'tree', 'tree_2', 'tree_3', 'bush_a', 'coin', 'bolt', 'crown', 'clock', 'gem'];
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
   function assetNames() {
@@ -583,12 +583,12 @@
       ctx.drawImage(im, -w / 2, -HH - 0.8, w, h);
       ctx.restore();
     }
-    // 空いていない土地にかかる白い雲(ui シートの、ふちのやわらかい白青のタイル。となりと少し重ねて、ひと続きの雲に見せる)
+    // 未購入の土地にかかる白い雲。白いふくらみと柔らかい青灰色の陰影を重ねる。
     const CLOUD_WIDE = 1.16;
     function cloudLayer(land) {
       const shape = cloudShapes.get(land.id);
       if (shape.layer) return shape.layer;
-      const im = imgs['ref/tile_cloud']; if (!ready(im)) return null;
+      const im = imgs['ref/tile_cloud_tactical']; if (!ready(im)) return null;
       const points = land.coverCells.flatMap(([c, r]) => [proj(c, r), proj(c + 1, r + 1), proj(c + 1, r), proj(c, r + 1)]);
       const x = Math.floor(Math.min(...points.map((p) => p[0]))) - 24, y = Math.floor(Math.min(...points.map((p) => p[1]))) - 24;
       const layer = document.createElement('canvas');
@@ -605,7 +605,7 @@
       const w = (TILE_W + 1.6) * CLOUD_WIDE, h = im.naturalHeight * w / im.naturalWidth;
       land.coverCells.forEach(([c, r]) => { const [tx, ty] = tileTop(c, r); cc.drawImage(im, tx - w / 2, ty - 0.8, w, h); });
       cc.restore();
-      // 元の雲素材を使い、輪郭だけをぼかして細く離す。
+      // 雲の輪郭だけをぼかして細く離し、区画の境目を保つ。
       cc.globalCompositeOperation = 'destination-out'; cc.filter = 'blur(4px)'; cc.lineWidth = 14; cc.lineJoin = 'round'; cc.strokeStyle = '#000'; cc.beginPath();
       shape.outline.forEach(([c, r, xx, yy]) => { cc.moveTo(...proj(c, r)); cc.lineTo(...proj(xx, yy)); }); cc.stroke();
       shape.layer = { image: layer, x, y }; return shape.layer;
@@ -615,7 +615,7 @@
       const p = clamp((now - tl.dis) / 900, 0, 1);
       const delay = ((tl.c + tl.r) - (tl.land.bounds.c + tl.land.bounds.r)) * 0.025;
       const q = clamp(p - delay, 0, 1);
-      const im = imgs['ref/tile_cloud'];
+      const im = imgs['ref/tile_cloud_tactical'];
       if (q >= 1 || !ready(im)) return;
       const [x, y] = tileTop(tl.c, tl.r);
       const w = (TILE_W + 1.6) * CLOUD_WIDE, h = im.naturalHeight * w / im.naturalWidth;
