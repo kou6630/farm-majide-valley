@@ -159,8 +159,11 @@ button:disabled { cursor: default; }
 /* Illustrated layers: art overlaps the frame; state changes drive the motion. */
 .medal { width: 68px; height: 74px; background: none; border: 0; clip-path: none; filter: drop-shadow(0 3px 2px #0b172a80); }
 .medal .medal-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.medal::before { z-index: 1; top: 25px; font-size: 8px; letter-spacing: 1.5px; color: #aadbd8; text-shadow: 0 1px 2px #000; }
-.medal span { z-index: 1; top: 45px; transform: translateY(-50%); font-size: 25px; text-shadow: 0 2px 2px #00101f; }
+.medal::before { display: none; }
+.medal-copy { position: absolute; z-index: 1; left: 9%; right: 9%; top: 28%; display: flex; flex-direction: column; align-items: center; gap: 4px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.medal .medal-copy > span { position: static; transform: none; width: 100%; text-align: center; }
+.medal .medal-copy .medal-label { font-size: 8px; line-height: 8px; letter-spacing: 1.5px; color: #aadbd8; text-shadow: 0 1px 2px #000; }
+.medal .medal-copy #level-num { font-size: 25px; line-height: 25px; text-shadow: 0 2px 2px #00101f; }
 .medal.pulse { animation: badge-celebrate .75s cubic-bezier(.2,.8,.3,1); }
 .xp-wrap { width: 94px; margin-left: -5px; background: linear-gradient(145deg,#314c5c,#152630); border: 1px solid #769da6; box-shadow: 0 3px 0 #0c1a24; }
 .xp-bar { height: 7px; background: #0b1a24; box-shadow: inset 0 1px 2px #0009; }
@@ -237,8 +240,9 @@ button:disabled { cursor: default; }
 @keyframes reward-arrive { from { opacity: 0; transform: translateY(25px) scale(.7); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (max-width: 420px) {
   .medal { width: 56px; height: 62px; }
-  .medal::before { top: 21px; font-size: 7px; }
-  .medal span { top: 38px; font-size: 22px; }
+  .medal-copy { gap: 3px; }
+  .medal .medal-copy .medal-label { font-size: 7px; line-height: 8px; }
+  .medal .medal-copy #level-num { font-size: 22px; line-height: 22px; }
   .xp-wrap { width: 60px; margin-left: -4px; }
   .hud-row .pill { padding-left: 25px; min-width: 74px; }
   .pill img { width: 29px; height: 29px; left: -7px; }
