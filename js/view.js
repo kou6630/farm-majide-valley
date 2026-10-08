@@ -31,6 +31,9 @@
     'tactical_road', 'tactical_tree', 'tactical_bush', 'tactical_house', 'tactical_barn', 'tactical_windmill', 'tactical_lamp', 'tactical_pond',
     'tile_cloud_tactical', 'market', 'dairy', 'bakery', 'coin', 'bolt', 'crown', 'clock', 'gem'];
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
+  const assetUrl = (name) => /^ref\/items\/wheat_[0-5]$/.test(name)
+    ? `assets/ref/items/tactical_wheat_${Math.min(Number(name.slice(-1)), 4)}.png`
+    : `assets/${name}.${name.startsWith('ui/tactical/') ? 'svg' : 'png'}`;
   function assetNames() {
     const n = [];
     Object.keys(CHAINS).forEach((k) => { for (let t = CHAINS[k].minTier || 0; t < CHAINS[k].count; t++) n.push(`ref/items/${k}_${t}`); });
@@ -54,7 +57,10 @@
       im.onload = () => { fin(); resolve(); };
       im.onerror = () => { console.warn('素材が読めません:', name); fin(); resolve(); };
       if (name.startsWith('ref/items/')) im.tight = true; // 切り出したままの絵: 足元が下端、幅が表示幅の2倍
-      im.src = `assets/${name}.${name.startsWith('ui/tactical/') ? 'svg' : 'png'}`;
+      // 収穫あとと枯れは同じ絵。枯れだけ描画時に暗くする。
+      im.withered = name === 'ref/items/wheat_5';
+      im.exportScale = /^ref\/items\/wheat_[0-5]$/.test(name) ? 4 : 1;
+      im.src = assetUrl(name);
       imgs[name] = im;
     }))).then(() => {
       // 外周の景観だけを差し替える。ショップ・アイテム・市松タイルは別の素材。
@@ -295,15 +301,30 @@
     // 足元 (x, y) に品物の足元が来るように描く
     function drawSprite(im, x, y, size, o = {}) {
       if (!ready(im)) return;
+      let art = im;
+      if (im.withered) {
+        // Canvas.filter がないスマホでも同じ色になるよう一度だけ色を変える。
+        if (!im.darkArt) {
+          const layer = document.createElement('canvas'); layer.width = im.naturalWidth; layer.height = im.naturalHeight;
+          const lc = layer.getContext('2d'); lc.drawImage(im, 0, 0);
+          const pixels = lc.getImageData(0, 0, layer.width, layer.height), data = pixels.data;
+          for (let i = 0; i < data.length; i += 4) {
+            const gray = (data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722) * 0.33;
+            data[i] = data[i + 1] = data[i + 2] = gray;
+          }
+          lc.putImageData(pixels, 0, 0); im.darkArt = layer;
+        }
+        art = im.darkArt;
+      }
       ctx.save();
       ctx.translate(x + (o.ox || 0), y + (o.oy || 0));
       if (o.rot) ctx.rotate(o.rot);
       ctx.scale(o.sx == null ? 1 : o.sx, o.sy == null ? 1 : o.sy);
       ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
       if (im.tight) {
-        const k = size / 118, w = im.naturalWidth / 2 * k, h = im.naturalHeight / 2 * k;
-        ctx.drawImage(im, -w / 2, -h * 0.97, w, h);
-      } else ctx.drawImage(im, -size / 2, -size * 0.9, size, size);
+        const k = size / 118 / im.exportScale, w = im.naturalWidth / 2 * k, h = im.naturalHeight / 2 * k;
+        ctx.drawImage(art, -w / 2, -h * 0.97, w, h);
+      } else ctx.drawImage(art, -size / 2, -size * 0.9, size, size);
       ctx.restore();
     }
     function shadow(x, y, size, lift = 0, alpha = 1) {
@@ -331,7 +352,7 @@
     // 絵の見た目の幅と高さ(影・光・吹き出し・つかむ範囲に使う)
     function dimsOf(it) {
       const im = spriteOf(it);
-      if (im && im.tight && ready(im)) return { w: im.naturalWidth / 2, h: im.naturalHeight / 2 };
+      if (im && im.tight && ready(im)) return { w: im.naturalWidth / 2 / im.exportScale, h: im.naturalHeight / 2 / im.exportScale };
       const s = sizeOf(it);
       return { w: s, h: s * 0.9 };
     }
@@ -1178,7 +1199,7 @@
       const tile = (img, name, tag, locked) => `<div class="lu-tile"><div class="lu-pic"><img class="p" src="${img}" alt="">${locked ? '<img class="lk" src="assets/ui/tactical/lock.svg" alt="">' : ''}</div><div class="lu-nm">${name}</div><div class="lu-tag">${tag}</div></div>`;
       const li = [];
       (ev.recipes || []).forEach((rc) => li.push(tile(`assets/ref/products/${rc.id}.png`, rc.name, '新しいレシピ', true)));
-      ev.unlocked.forEach((k) => li.push(tile(`assets/ref/items/${k}_${CHAINS[k].minTier || 0}.png`, CHAINS[k].name, CHAINS[k].type === 'animal' ? '新しい動物' : CHAINS[k].type === 'crop' ? '新しい作物' : '新しいアイテム', true)));
+      ev.unlocked.forEach((k) => li.push(tile(assetUrl(`ref/items/${k}_${CHAINS[k].minTier || 0}`), CHAINS[k].name, CHAINS[k].type === 'animal' ? '新しい動物' : CHAINS[k].type === 'crop' ? '新しい作物' : '新しいアイテム', true)));
       if (ev.reward.crates) li.push(tile('assets/ref/crate_small.png', `箱 ×${ev.reward.crates}`, 'ごほうび', false));
       if (ev.reward.energy) li.push(tile('assets/ui/tactical/bolt.svg', `エネルギー +${ev.reward.energy}`, 'ごほうび', false));
       $('lu-list').innerHTML = li.join('');
