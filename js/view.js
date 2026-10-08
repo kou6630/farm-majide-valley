@@ -59,6 +59,9 @@
     }))).then(() => {
       Object.entries({ coin: 'coin', energy: 'bolt', gems: 'gem', crown: 'rank', lock: 'lock', worker: 'worker', clock: 'clock' })
         .forEach(([alias, name]) => { imgs['ui/' + alias] = imgs['ui/tactical/' + name]; });
+      // HUDに重ねる手描きの絵と、飛び込む報酬の絵を揃える。
+      Object.entries({ coin: 'coin', energy: 'bolt', gems: 'gem', crown: 'crown', worker: 'worker', clock: 'clock' })
+        .forEach(([alias, name]) => { imgs['ui/' + alias] = imgs['ref/' + name]; });
     });
   }
   const ready = (im) => !!(im && im.complete && im.naturalWidth);
@@ -1611,6 +1614,9 @@
       if (!res.ok) {
         toast(res.reason === 'full' ? '空きマスがありません。合体してスペースを作ろう' : '箱がありません。少し待つかレベルアップで増えます');
       }
+    });
+    $('crate-btn').addEventListener('animationend', (event) => {
+      if (event.animationName === 'cargo-button-pop') $('crate-btn').classList.remove('squash');
     });
     // ---------- アップグレードカードの画面 ----------
     const stars = (n) => '<img src="assets/ref/cards/arrow.png" alt="">'.repeat(n);
