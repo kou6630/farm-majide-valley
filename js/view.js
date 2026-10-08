@@ -563,10 +563,9 @@
     const hash = (c, r, k = 0) => Math.abs(((c * 73856093) ^ (r * 19349663) ^ (k * 83492791)) | 0);
     function grassKind(c, r) {
       const h = hash(c, r) % 100;
-      if (h < 8) return 'g_a' + (4 + (h % 5));
-      if (h < 13) return 'g_b' + (3 + (h % 4));
-      // 地面の明暗は小さなまとまりで変える。規則的な市松模様を作らない。
-      return hash(Math.floor(c / 3), Math.floor(r / 3), 2) % 4 === 0 ? 'g_b0' : 'g_a0';
+      // マスを見分ける交互配色は固定し、装飾も同じ色の素材から選ぶ。
+      if ((c + r) % 2 === 0) return h < 13 ? 'g_a' + (4 + (h % 5)) : 'g_a0';
+      return h < 13 ? 'g_b' + (3 + (h % 4)) : 'g_b0';
     }
     const roadKind = (c, r) => !roadSet.has(key(c, r + 1)) && !landCells.has(key(c, r + 1)) ? 'road_b' : hash(c, r, 5) % 2 ? 'road_a' : 'road_c';
     function drawTile(c, r, kind, now, wide = 1, dy = 0) {
