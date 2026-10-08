@@ -27,6 +27,7 @@
   }
   // 取り込んだ絵(assets/ref/*.png)と、自作の絵(assets/*/*.svg)
   const REF = ['g_a0', 'g_a1', 'g_a2', 'g_a3', 'g_a4', 'g_a5', 'g_a6', 'g_a7', 'g_a8', 'g_b0', 'g_b1', 'g_b2', 'g_b3', 'g_b4', 'g_b5', 'g_b6',
+    'g_tactical_light', 'g_tactical_dark',
     'road_a', 'road_b', 'road_c', 'pond_a', 'pond_b', 'pond_c', 'tile_cloud', 'market', 'dairy', 'bakery', 'house', 'barn', 'windmill', 'lamp',
     'tree', 'tree_2', 'tree_3', 'bush_a', 'coin', 'bolt', 'crown', 'clock', 'gem'];
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
@@ -559,13 +560,10 @@
       });
     }
 
-    // 市松の2色に、花・小石・キノコの変化を散らす(同じ模様が並ばない)
+    // マスを見分ける市松の2色を固定する。
     const hash = (c, r, k = 0) => Math.abs(((c * 73856093) ^ (r * 19349663) ^ (k * 83492791)) | 0);
     function grassKind(c, r) {
-      const h = hash(c, r) % 100;
-      // マスを見分ける交互配色は固定し、装飾も同じ色の素材から選ぶ。
-      if ((c + r) % 2 === 0) return h < 13 ? 'g_a' + (4 + (h % 5)) : 'g_a0';
-      return h < 13 ? 'g_b' + (3 + (h % 4)) : 'g_b0';
+      return (c + r) % 2 === 0 ? 'g_tactical_light' : 'g_tactical_dark';
     }
     const roadKind = (c, r) => !roadSet.has(key(c, r + 1)) && !landCells.has(key(c, r + 1)) ? 'road_b' : hash(c, r, 5) % 2 ? 'road_a' : 'road_c';
     function drawTile(c, r, kind, now, wide = 1, dy = 0) {
