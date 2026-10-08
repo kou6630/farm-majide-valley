@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#2f5e1c">
+<meta name="theme-color" content="#0f1923">
 <title>ファームまじでValley</title>
 <link rel="stylesheet" href="css/style.css">
-  <link rel="icon" type="image/png" href="assets/ref/crown.png">
+<link rel="stylesheet" href="css/tactical-ui.css">
+<link rel="icon" type="image/svg+xml" href="assets/ui/tactical/cargo.svg">
 </head>
 <body>
 <canvas id="stage"></canvas>
@@ -14,8 +15,6 @@
 <div id="hud">
   <div class="hud-left">
     <div id="medal" class="medal">
-      <img class="medal-bg" src="assets/ref/medal.png" alt="">
-      <img class="medal-crown" src="assets/ref/crown.png" alt="">
       <span id="level-num">1</span>
     </div>
     <div class="xp-wrap">
@@ -26,16 +25,16 @@
   <div class="hud-right">
     <div class="hud-row">
       <div id="coin-pill" class="pill">
-        <img src="assets/ref/coin.png" alt="コイン">
+        <img src="assets/ui/tactical/coin.svg" alt="コイン">
         <span id="coin-num">0</span>
       </div>
       <div id="gem-pill" class="pill">
-        <img src="assets/ref/gem.png" alt="ジェム">
+        <img src="assets/ui/tactical/gem.svg" alt="ジェム">
         <span id="gem-num">0</span>
       </div>
     </div>
     <div id="energy-pill" class="pill small">
-      <img src="assets/ref/bolt.png" alt="エネルギー">
+      <img src="assets/ui/tactical/bolt.svg" alt="エネルギー">
       <span id="energy-num">50</span><small>/50</small>
       <em id="energy-timer"></em>
     </div>
@@ -48,18 +47,18 @@
 
 <div id="regrow" class="regrow hidden">
   <div class="rg-head">回復中</div>
-  <div class="rg-time"><img src="assets/ref/clock.png" alt=""><b id="rg-time">0M 0S</b></div>
-  <button id="rg-skip" class="rg-skip"><img src="assets/ref/gem.png" alt=""><b id="rg-cost">0</b></button>
+  <div class="rg-time"><img src="assets/ui/tactical/clock.svg" alt=""><b id="rg-time">0M 0S</b></div>
+  <button id="rg-skip" class="rg-skip"><img src="assets/ui/tactical/gem.svg" alt=""><b id="rg-cost">0</b></button>
 </div>
 
-<button id="worker-chip" class="worker-btn" aria-label="作業者"><img src="assets/ref/hardhat.png" alt=""><span id="worker-text">0/1</span></button>
+<button id="worker-chip" class="worker-btn" aria-label="作業者"><img src="assets/ui/tactical/worker.svg" alt=""><span id="worker-text">0/1</span></button>
 
 <div id="workers" class="workers hidden">
   <h2 id="wk-title">作業者が足りません!</h2>
   <div class="wk-face"><img src="assets/ref/foreman.png" alt=""></div>
   <div class="wk-count" id="wk-count">0/1</div>
   <p class="wk-msg">14日間、作業者をもう1人借りよう!</p>
-  <button id="wk-rent" class="wk-price"><img src="assets/ref/gem.png" alt=""><b id="wk-gems">225</b></button>
+  <button id="wk-rent" class="wk-price"><img src="assets/ui/tactical/gem.svg" alt=""><b id="wk-gems">225</b></button>
   <button id="wk-close" class="wk-later">今はやめる</button>
   <p class="wk-note" id="wk-note"></p>
 </div>
@@ -72,7 +71,8 @@
 <div id="bottom">
   <div class="crate-wrap">
     <button id="crate-btn" class="crate-btn" aria-label="箱を開ける">
-      <img src="assets/ref/crate_btn.png" alt="">
+      <img src="assets/ui/tactical/cargo.svg" alt="">
+      <span class="crate-action">箱を開ける</span>
     </button>
     <div class="crate-label"><b id="crate-count">0/40</b><span id="crate-regen" class="crate-regen"><i>+5 :</i><em id="crate-timer"></em></span></div>
     <img id="hand" class="hand" src="assets/ref/hand.png" alt="">
@@ -84,7 +84,7 @@
 <div id="chest" class="chest-popup hidden" role="dialog" aria-labelledby="chest-title">
   <button id="chest-close" class="chest-close" aria-label="閉じる">×</button>
   <div id="chest-title" class="chest-title">宝箱</div>
-  <div class="chest-time"><img src="assets/ref/clock.png" alt="残り時間"><b id="chest-time"></b></div>
+  <div class="chest-time"><img src="assets/ui/tactical/clock.svg" alt="残り時間"><b id="chest-time"></b></div>
   <div class="chest-key"><img id="chest-key" src="assets/ref/items/keys_0.png" alt="カギ"><b id="chest-count">0/2</b></div>
   <button id="chest-open" class="chest-open">開ける</button>
 </div>
@@ -92,7 +92,7 @@
 <div id="panel" class="overlay hidden">
   <div class="card ord-card">
     <div class="ord-head">
-      <img class="ord-ico" src="assets/ref/orders.png" alt="">
+      <img class="ord-ico" src="assets/ui/tactical/orders.svg" alt="">
       <span id="ord-title">オーダー</span>
       <button id="panel-close" class="card-close" aria-label="閉じる">×</button>
     </div>
@@ -117,7 +117,7 @@
 </div>
 
 <div id="levelup" class="levelup hidden">
-  <div class="lu-medal"><img class="medal-bg" src="assets/ref/medal.png" alt=""><img class="medal-crown" src="assets/ref/crown.png" alt=""><b id="lu-level">2</b></div>
+  <div class="lu-medal"><b id="lu-level">2</b></div>
   <h2>レベルアップ!</h2>
   <p id="lu-sub" class="lu-sub">報酬</p>
   <div id="lu-list" class="lu-list"></div>
@@ -125,7 +125,7 @@
 </div>
 
 <div id="loading" class="loading">
-  <img class="loading-img" src="assets/ref/loading.webp" alt="ファームまじでValley">
+  <div class="loading-brand"><span>FARM</span><strong>まじでValley</strong><i>MERGE &amp; BUILD</i></div>
   <div class="loading-box">
     <div class="loading-bar"><div id="loading-fill"></div></div>
     <div id="loading-text">読み込み中…</div>

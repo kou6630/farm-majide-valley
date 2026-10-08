@@ -42,6 +42,7 @@
     Object.values(BUILDINGS).forEach((bd) => bd.recipes.forEach((rc) => n.push('ref/products/' + rc.id)));
     n.push('ref/cards/arrow', 'ref/cards/frame_1', 'ref/cards/frame_2', 'ref/cards/frame_3');
     Object.keys(CHAINS).forEach((k) => { if (CHAINS[k].type !== 'bonus') n.push('ref/cards/pic_' + k); });
+    ['coin', 'gem', 'bolt', 'rank', 'lock', 'worker', 'clock'].forEach((x) => n.push('ui/tactical/' + x));
     return n;
   }
   function loadAssets(onProgress) {
@@ -53,9 +54,12 @@
       im.onload = () => { fin(); resolve(); };
       im.onerror = () => { console.warn('素材が読めません:', name); fin(); resolve(); };
       if (name.startsWith('ref/items/')) im.tight = true; // 切り出したままの絵: 足元が下端、幅が表示幅の2倍
-      im.src = `assets/${name}.png`;
+      im.src = `assets/${name}.${name.startsWith('ui/tactical/') ? 'svg' : 'png'}`;
       imgs[name] = im;
-    }))).then(() => { imgs['ui/coin'] = imgs['ref/coin']; imgs['ui/energy'] = imgs['ref/bolt']; imgs['ui/gems'] = imgs['ref/gem']; imgs['ui/crown'] = imgs['ref/crown']; imgs['ui/lock'] = imgs['ref/lock']; imgs['ui/worker'] = imgs['ref/worker']; });
+    }))).then(() => {
+      Object.entries({ coin: 'coin', energy: 'bolt', gems: 'gem', crown: 'rank', lock: 'lock', worker: 'worker', clock: 'clock' })
+        .forEach(([alias, name]) => { imgs['ui/' + alias] = imgs['ui/tactical/' + name]; });
+    });
   }
   const ready = (im) => !!(im && im.complete && im.naturalWidth);
   const spriteOf = (it) => {
@@ -265,10 +269,11 @@
     }
 
     // ---------- 描画ヘルパー ----------
-    function roundRect(x, y, w, h, r) {
+    function cutRect(x, y, w, h, r) {
+      const cut = Math.min(r, w / 4, h / 3);
       ctx.beginPath();
-      ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+      ctx.moveTo(x + cut, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + h - cut);
+      ctx.lineTo(x + w - cut, y + h); ctx.lineTo(x, y + h); ctx.lineTo(x, y + cut); ctx.closePath();
     }
     function diamondPath(c, r, inset = 0) {
       const [x, y] = tileTop(c, r);
@@ -349,8 +354,8 @@
     function harvestBubble(x, y, it, t, img) {
       const by = y - 112 + Math.sin(t * 3.2) * 3;
       ctx.save();
-      ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.lineWidth = 2;
-      roundRect(x - 24, by - 24, 48, 44, 12); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#182a34'; ctx.strokeStyle = '#91d5cf'; ctx.lineWidth = 2;
+      cutRect(x - 24, by - 24, 48, 44, 12); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x - 7, by + 19); ctx.lineTo(x, by + 29); ctx.lineTo(x + 7, by + 19); ctx.fill();
       const ing = img || imgs['ref/items/ing_' + CHAINS[it.k].yields];
       if (ready(ing)) {
@@ -378,7 +383,7 @@
       if ((it.t === 'obs' || it.k === 'toolbox') && it.pend && !o.pos) harvestBubble(bx + v.ox, by + v.oy - Math.max(0, dm.h - 100), it, t, imgs[`ref/items/${it.k === 'toolbox' ? 'tools' : OBSTACLES[it.k].res}_0`]);   // 作業が終わった: 素材の吹き出し
       if (phase === 'withered' && !o.pos) harvestBubble(bx + v.ox, by + v.oy - Math.max(0, dm.h - 100), it, t, imgs[CHAINS[it.k].type === 'crop' ? `ref/items/${it.k}_0` : 'ref/items/coin_0']);
       if (phase === 'regrow' && !o.pos) {   // 回復中: 小さな青い時計がかぶさる
-        const ck = imgs['ref/clock'];
+        const ck = imgs['ui/clock'];
         if (ready(ck)) { const sc = 1 + 0.05 * Math.sin(t * 3 + v.phase); ctx.drawImage(ck, bx + v.ox - 24 * sc, by + v.oy - dm.h * 0.42 - 24 * sc, 48 * sc, 51 * sc); }
       }
       if (isMax && !o.pos) {   // 星のレベル: 黄色い矢印
@@ -393,8 +398,8 @@
         const p = clamp((Date.now() - work.startedAt) / (work.endsAt - work.startedAt), 0, 1);
         const cx = bx, cy = by - size * 0.95;
         ctx.save();
-        ctx.fillStyle = 'rgba(60,40,20,.75)'; ctx.beginPath(); ctx.arc(cx, cy, 24, 0, 6.283); ctx.fill();
-        ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.fillStyle = '#0f1923'; ctx.beginPath(); ctx.arc(cx, cy, 24, 0, 6.283); ctx.fill();
+        ctx.strokeStyle = '#91d5cf'; ctx.lineWidth = 6; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.arc(cx, cy, 18, -1.5708, -1.5708 + p * 6.283); ctx.stroke();
         ctx.restore();
         const w = imgs['ui/worker'];
@@ -443,8 +448,8 @@
       if (pressed && pressed.bcand === bk && !pressed.moved && !bdrag) {
         const p = clamp((performance.now() - pressed.t0) / 450, 0, 1), rx = info.x, ry = info.top + 20;
         ctx.save();
-        ctx.fillStyle = 'rgba(60,40,20,.75)'; ctx.beginPath(); ctx.arc(rx, ry, 24, 0, 6.283); ctx.fill();
-        ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.fillStyle = '#0f1923'; ctx.beginPath(); ctx.arc(rx, ry, 24, 0, 6.283); ctx.fill();
+        ctx.strokeStyle = '#91d5cf'; ctx.lineWidth = 6; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.arc(rx, ry, 18, -1.5708, -1.5708 + p * 6.283); ctx.stroke();
         ctx.restore();
       }
@@ -454,24 +459,24 @@
         if (im2) {
           const by = top - 12 + Math.sin(t * 4) * 4;
           ctx.save();
-          ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.lineWidth = 2;
-          roundRect(cx - 28, by - 54, 56, 52, 14); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#182a34'; ctx.strokeStyle = '#91d5cf'; ctx.lineWidth = 2;
+          cutRect(cx - 28, by - 54, 56, 52, 14); ctx.fill(); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(cx - 8, by - 4); ctx.lineTo(cx, by + 8); ctx.lineTo(cx + 8, by - 4); ctx.fill();
           if (ready(im2)) { const k = Math.min(44 / im2.naturalWidth, 40 / im2.naturalHeight); ctx.drawImage(im2, cx - im2.naturalWidth * k / 2, by - 28 - im2.naturalHeight * k / 2, im2.naturalWidth * k, im2.naturalHeight * k); }
           ctx.restore();
         }
       } else if (b.job) {
         const p = clamp((Date.now() - b.job.startedAt) / (b.job.endsAt - b.job.startedAt), 0, 1);
-        ctx.fillStyle = 'rgba(60,40,20,.8)'; roundRect(cx - 38, top - 8, 76, 16, 8); ctx.fill();
-        ctx.fillStyle = '#ffd23f'; roundRect(cx - 34, top - 4, 68 * p, 8, 4); ctx.fill();
+        ctx.fillStyle = '#0f1923'; cutRect(cx - 38, top - 8, 76, 16, 8); ctx.fill();
+        ctx.fillStyle = '#91d5cf'; cutRect(cx - 34, top - 4, 68 * p, 8, 4); ctx.fill();
       } else {
         const oc = engine.orderOf(bk);
         const rc = oc && Object.keys(oc.needs).every((n) => (engine.state.inv[n] || 0) >= oc.needs[n]) ? oc : null;
         if (rc) {
           const by = top - 12 + Math.sin(t * 4) * 4, pi = imgs['ref/products/' + rc.id];
           ctx.save();
-          ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.lineWidth = 2;
-          roundRect(cx - 28, by - 54, 56, 52, 14); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#182a34'; ctx.strokeStyle = '#91d5cf'; ctx.lineWidth = 2;
+          cutRect(cx - 28, by - 54, 56, 52, 14); ctx.fill(); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(cx - 8, by - 4); ctx.lineTo(cx, by + 8); ctx.lineTo(cx + 8, by - 4); ctx.fill();
           if (ready(pi)) { const k = Math.min(44 / pi.naturalWidth, 40 / pi.naturalHeight); ctx.drawImage(pi, cx - pi.naturalWidth * k / 2, by - 28 - pi.naturalHeight * k / 2, pi.naturalWidth * k, pi.naturalHeight * k); }
           ctx.fillStyle = '#e8282e'; ctx.beginPath(); ctx.arc(cx + 26, by - 52, 11, 0, 6.283); ctx.fill();
@@ -494,13 +499,14 @@
       const [x0, y0] = landLabelPos(land);
       const st = engine.landState(land.id);
       const ok = st === 'buyable', lockedByLevel = st === 'locked';
-      const font = '"Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif';
+      const font = '"Bahnschrift","Yu Gothic UI",system-ui,sans-serif';
       ctx.save();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       if (lockedByLevel) {
         // まだ買えない土地は、小さな鍵のチップだけ出す
         ctx.translate(x0, y0 + 20);
-        ctx.fillStyle = 'rgba(40,52,70,.78)'; roundRect(-44, -17, 88, 34, 17); ctx.fill();
+        ctx.fillStyle = 'rgba(15,25,35,.94)'; cutRect(-44, -17, 88, 34, 6); ctx.fill();
+        ctx.fillStyle = '#91d5cf'; ctx.fillRect(-44, -9, 2, 18);
         if (ready(imgs['ui/lock'])) ctx.drawImage(imgs['ui/lock'], -36, -12, 24, 24);
         ctx.fillStyle = '#fff'; ctx.font = `900 16px ${font}`; ctx.fillText(`Lv ${land.level}`, 12, 1);
         ctx.restore();
@@ -510,22 +516,25 @@
       const s = ok ? 1 + 0.04 * Math.sin(t * 4) : 1;
       ctx.translate(x0, y0 + bob); ctx.scale(s, s);
       const w = 150, h = 92;
-      ctx.fillStyle = 'rgba(0,0,0,.16)'; roundRect(-w / 2 + 3, -h / 2 + 6, w, h, 16); ctx.fill();
-      ctx.fillStyle = '#fff'; roundRect(-w / 2, -h / 2, w, h, 16); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.16)'; cutRect(-w / 2 + 3, -h / 2 + 6, w, h, 16); ctx.fill();
+      ctx.fillStyle = '#182a34'; cutRect(-w / 2, -h / 2, w, h, 8); ctx.fill();
+      ctx.fillStyle = '#ff6571'; ctx.fillRect(-w / 2 + 8, -h / 2, w - 8, 3);
+      ctx.fillStyle = '#182a34';
       ctx.beginPath(); ctx.moveTo(-10, h / 2 - 1); ctx.lineTo(0, h / 2 + 13); ctx.lineTo(10, h / 2 - 1); ctx.fill();
-      ctx.fillStyle = '#5a5a66'; ctx.font = `800 17px ${font}`;
+      ctx.fillStyle = '#ece8e1'; ctx.font = `800 17px ${font}`;
       ctx.fillText('土地', 0, -h / 2 + 17);
       const bw = 124, bh = 30, by = -h / 2 + 30;
-      ctx.fillStyle = ok ? '#4fb83a' : '#b9bec7';
-      roundRect(-bw / 2, by, bw, bh, 9); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = `900 16px ${font}`;
+      ctx.fillStyle = ok ? '#ff6571' : '#425761';
+      cutRect(-bw / 2, by, bw, bh, 9); ctx.fill();
+      ctx.fillStyle = ok ? '#0f1923' : '#c4ced0'; ctx.font = `900 16px ${font}`;
       ctx.fillText('購入する', 0, by + bh / 2 + 1);
       // コストの進行バー
       const cost = land.cost, have = engine.state.coins, p = cost ? clamp(have / cost, 0, 1) : 1;
       const by2 = h / 2 - 17;
-      ctx.fillStyle = '#d9eef0'; roundRect(-40, by2 - 7, 92, 14, 7); ctx.fill();
-      ctx.fillStyle = '#2fb5b5'; roundRect(-40, by2 - 7, Math.max(14, 92 * p), 14, 7); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = '900 12px system-ui,sans-serif'; ctx.textAlign = 'left';
+      ctx.fillStyle = '#425761'; cutRect(-40, by2 - 7, 92, 14, 2); ctx.fill();
+      ctx.fillStyle = '#91d5cf'; cutRect(-40, by2 - 7, Math.max(14, 92 * p), 14, 2); ctx.fill();
+      ctx.fillStyle = '#ece8e1'; ctx.font = '900 12px system-ui,sans-serif'; ctx.textAlign = 'left';
+      ctx.strokeStyle = '#0f1923'; ctx.lineWidth = 3; ctx.strokeText(String(cost), -34, by2 + 1);
       ctx.fillText(String(cost), -34, by2 + 1);
       if (ready(imgs['ui/coin'])) ctx.drawImage(imgs['ui/coin'], -62, by2 - 14, 28, 28);
       ctx.restore();
@@ -767,10 +776,10 @@
             const n = info.length + 1 >= 5 ? 5 : 3, [hx, hy] = tileCenter(drag.hover[0], drag.hover[1]);
             const bx = hx, by = hy - 126 + Math.sin(t * 8) * 2;
             ctx.save();
-            ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.arc(bx, by, 26, 0, 6.283); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#182a34'; ctx.strokeStyle = '#91d5cf'; ctx.lineWidth = 2;
+            cutRect(bx - 26, by - 26, 52, 52, 8); ctx.fill(); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(bx - 7, by + 23); ctx.lineTo(bx, by + 34); ctx.lineTo(bx + 7, by + 23); ctx.fill();
-            ctx.fillStyle = n === 5 ? '#e0408a' : '#2c2c35'; ctx.font = '900 30px "Hiragino Maru Gothic ProN",system-ui,sans-serif';
+            ctx.fillStyle = n === 5 ? '#91d5cf' : '#ece8e1'; ctx.font = '900 30px "Bahnschrift",system-ui,sans-serif';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), bx, by + 2);
             ctx.restore();
           }
@@ -1132,12 +1141,12 @@
       if (!lvQueue.length || !box.classList.contains('hidden')) return;
       const ev = lvQueue.shift();
       $('lu-level').textContent = ev.level;
-      const tile = (img, name, tag, locked) => `<div class="lu-tile"><div class="lu-pic"><img class="p" src="${img}" alt="">${locked ? '<img class="lk" src="assets/ref/lock.png" alt="">' : ''}</div><div class="lu-nm">${name}</div><div class="lu-tag">${tag}</div></div>`;
+      const tile = (img, name, tag, locked) => `<div class="lu-tile"><div class="lu-pic"><img class="p" src="${img}" alt="">${locked ? '<img class="lk" src="assets/ui/tactical/lock.svg" alt="">' : ''}</div><div class="lu-nm">${name}</div><div class="lu-tag">${tag}</div></div>`;
       const li = [];
       (ev.recipes || []).forEach((rc) => li.push(tile(`assets/ref/products/${rc.id}.png`, rc.name, '新しいレシピ', true)));
       ev.unlocked.forEach((k) => li.push(tile(`assets/ref/items/${k}_${CHAINS[k].minTier || 0}.png`, CHAINS[k].name, CHAINS[k].type === 'animal' ? '新しい動物' : CHAINS[k].type === 'crop' ? '新しい作物' : '新しいアイテム', true)));
       if (ev.reward.crates) li.push(tile('assets/ref/crate_small.png', `箱 ×${ev.reward.crates}`, 'ごほうび', false));
-      if (ev.reward.energy) li.push(tile('assets/ref/bolt.png', `エネルギー +${ev.reward.energy}`, 'ごほうび', false));
+      if (ev.reward.energy) li.push(tile('assets/ui/tactical/bolt.svg', `エネルギー +${ev.reward.energy}`, 'ごほうび', false));
       $('lu-list').innerHTML = li.join('');
       $('lu-sub').classList.toggle('off', !li.length);
       box.classList.remove('hidden');
@@ -1192,13 +1201,13 @@
       if (job) btn = `<button class="cook-btn ${left <= FREE ? '' : 'none'}" data-free="1">無料</button>`;
       else btn = `<button class="cook-btn ${enough(sel) ? 'go' : ''}" data-id="${sel.id}">作る</button>`;
       const n = sel.reward[1], coin = `assets/ref/items/coin_${sel.reward[0]}.png`;
-      const timer = job ? `<span class="ord-time"><img src="assets/ref/clock.png" alt="">${mmss2(left)}</span>` : '';
+      const timer = job ? `<span class="ord-time"><img src="assets/ui/tactical/clock.svg" alt="">${mmss2(left)}</span>` : '';
       body.innerHTML = `<div class="ord-main"><img class="ord-npc" src="${npcImg(bk, def.recipes.indexOf(sel))}" alt="">
           <div class="ord-eq">${needs}<span class="ord-equal">=</span><span class="ord-prodwrap"><img class="ord-prod" src="assets/ref/products/${sel.id}.png" alt="">${timer}</span></div></div>
         <div class="ord-bar"><span>報酬</span><img src="${coin}" alt="">${n > 1 ? `<span>×${n}</span>` : ''}${btn}</div>
         <div class="ord-list">${shops.map((k) => {
           const rc = engine.orderOf(k), cooking = !!engine.state.buildings[k].job;
-          const mark = cooking ? '<img class="clk" src="assets/ref/clock.png" alt="">' : (enough(rc) ? '<i class="bang">!</i>' : '');
+          const mark = cooking ? '<img class="clk" src="assets/ui/tactical/clock.svg" alt="">' : (enough(rc) ? '<i class="bang">!</i>' : '');
           return `<button class="ord-tile ${k === bk ? 'on' : ''}" data-shop="${k}"><img class="p" src="assets/ref/products/${rc.id}.png" alt=""><img class="c" src="assets/ref/items/coin_${rc.reward[0]}.png" alt="">${mark}</button>`;
         }).join('')}</div>`;
     }
