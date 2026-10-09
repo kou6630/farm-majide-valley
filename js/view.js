@@ -34,11 +34,14 @@
   const TACTICAL_CHAIN = /^ref\/items\/(wheat|chicken|cow|sugarcane|carrot|goat|edamame|pig|sunflower|corn|sheep|coffee|deer|tomato)_([0-5])$/;
   const TACTICAL_BONUS = /^ref\/items\/(toolbox|lockbox|keys)_([0-2])$/;
   const TACTICAL_RESOURCE = /^ref\/items\/(coin|energy|brick|logs|gem|woodbox|tools)_(\d+)$/;
+  const TACTICAL_INGREDIENT = /^ref\/items\/ing_(wheat|egg|milk|carrot|goatmilk|corn|tomato|sunflower|edamame|sugarcane|coffee|bacon|wool|hide)$/;
   const TACTICAL_OBSTACLE = /^ref\/items\/obs_(rock|tree)_[sml]$/;
   const TACTICAL_SHOP = /^ref\/(market|bakery|dairy|bbq|sweets|loom|barista|tomatocar)(_broken)?$/;
   const assetUrl = (name) => {
     const resource = name.match(TACTICAL_RESOURCE);
     if (resource) return `assets/ref/items/tactical_${resource[1]}_${resource[2]}.png`;
+    const ingredient = name.match(TACTICAL_INGREDIENT);
+    if (ingredient) return `assets/ref/items/tactical_ing_${ingredient[1]}.png`;
     if (TACTICAL_OBSTACLE.test(name) || TACTICAL_SHOP.test(name)) {
       const slash = name.lastIndexOf('/');
       return `assets/${name.slice(0, slash + 1)}tactical_${name.slice(slash + 1)}.png`;
@@ -74,7 +77,7 @@
       const tactical = name.match(TACTICAL_CHAIN);
       im.withered = !!tactical && tactical[2] === '5';
       im.keepWitheredColor = !!tactical && tactical[1] !== 'wheat';
-      im.exportScale = tactical || TACTICAL_BONUS.test(name) || TACTICAL_RESOURCE.test(name) || TACTICAL_OBSTACLE.test(name) || TACTICAL_SHOP.test(name) ? 4 : 1;
+      im.exportScale = tactical || TACTICAL_BONUS.test(name) || TACTICAL_RESOURCE.test(name) || TACTICAL_INGREDIENT.test(name) || TACTICAL_OBSTACLE.test(name) || TACTICAL_SHOP.test(name) ? 4 : 1;
       im.src = assetUrl(name);
       imgs[name] = im;
     }))).then(() => {
@@ -1258,7 +1261,7 @@
     $('levelup').addEventListener('click', () => { $('levelup').classList.add('hidden'); later(200, showLevelUp); });
 
     // ---------- 建物パネル ----------
-    const ingImg = (k) => `assets/ref/items/ing_${k}.png`;
+    const ingImg = (k) => assetUrl(`ref/items/ing_${k}`);
     let panelTab = 'order';
     function openPanel(bk) { panelFor = bk; panelTab = 'order'; $('panel').classList.remove('hidden'); refreshPanel(true); }
     function closePanel() { panelFor = null; $('panel').classList.add('hidden'); }
