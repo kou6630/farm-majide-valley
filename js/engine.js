@@ -9,6 +9,7 @@
   const CRATE_REGEN_MS = 300000;
   const CRATE_REGEN_AMOUNT = 5;
   const MAX_CRATES = 40;
+  const START_CRATES = 1000; // テスト用の開始時所持数。自然回復の上限は40のまま。
   // アップグレードカード(本家): 収穫のときに、ときどき星 1 のカードが出る。星 1 を 3 枚で星 2、星 2 を 3 枚で星 3 に合体できる。
   // 使うと、その作物・動物の「星のレベル」が上がり、収穫で出る食材が、星 1 つにつき 1 つ増える。
   // 1 つの系統で出るカードは、星 3 のカード 1 枚ぶん(星 1 の 9 枚ぶん)まで。そろったら、もう出ない。
@@ -52,7 +53,7 @@
     // ---------- 状態 ----------
     function newState() {
       const st = {
-        v: SAVE_VERSION, layoutRevision: LAYOUT_REVISION, level: 1, xp: 0, coins: 0, gems: GEM_START, energy: MAX_ENERGY, crates: MAX_CRATES, sinceKC: 0,
+        v: SAVE_VERSION, layoutRevision: LAYOUT_REVISION, level: 1, xp: 0, coins: 0, gems: GEM_START, energy: MAX_ENERGY, crates: START_CRATES, sinceKC: 0,
         lastEnergyAt: now(), lastCrateAt: now(),
         lands: {}, items: {}, nextId: 1,
         buildings: {}, inv: {}, jobs: [], rentals: [], bpos: {}, cards: {}, rewardBubbles: [],
