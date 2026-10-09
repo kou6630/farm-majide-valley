@@ -20,7 +20,7 @@
   const SHOP_ART = /^(market|bakery|dairy|bbq|sweets|loom|barista|tomatocar)(_broken)?$/;
   function spriteGeom(name) {
     const im = imgs['ref/' + name];
-    const sp = SPRITE[name] || (SHOP_ART.test(name) && ready(im) ? { w: Math.round(im.naturalWidth * 0.9), ay: 0.72 } : null);
+    const sp = SPRITE[name] || (SHOP_ART.test(name) && ready(im) ? { w: Math.round(im.naturalWidth / im.exportScale * 0.9), ay: 0.72 } : null);
     if (!ready(im) || !sp) return null;
     const w = sp.w, h = im.naturalHeight * w / im.naturalWidth;
     return { im, w, h, x0: -w / 2, y0: -h * sp.ay };
@@ -33,7 +33,13 @@
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
   const TACTICAL_CHAIN = /^ref\/items\/(wheat|chicken|cow|sugarcane|carrot|goat|edamame|pig|sunflower|corn|sheep|coffee|deer|tomato)_([0-5])$/;
   const TACTICAL_BONUS = /^ref\/items\/(toolbox|lockbox|keys)_([0-2])$/;
+  const TACTICAL_OBSTACLE = /^ref\/items\/obs_(rock|tree)_[sml]$/;
+  const TACTICAL_SHOP = /^ref\/(market|bakery|dairy|bbq|sweets|loom|barista|tomatocar)(_broken)?$/;
   const assetUrl = (name) => {
+    if (TACTICAL_OBSTACLE.test(name) || TACTICAL_SHOP.test(name)) {
+      const slash = name.lastIndexOf('/');
+      return `assets/${name.slice(0, slash + 1)}tactical_${name.slice(slash + 1)}.png`;
+    }
     const match = name.match(TACTICAL_CHAIN) || name.match(TACTICAL_BONUS);
     return match ? `assets/ref/items/tactical_${match[1]}_${Math.min(Number(match[2]), 4)}.png`
       : `assets/${name}.${name.startsWith('ui/tactical/') ? 'svg' : 'png'}`;
@@ -65,7 +71,7 @@
       const tactical = name.match(TACTICAL_CHAIN);
       im.withered = !!tactical && tactical[2] === '5';
       im.keepWitheredColor = !!tactical && tactical[1] !== 'wheat';
-      im.exportScale = tactical || TACTICAL_BONUS.test(name) ? 4 : 1;
+      im.exportScale = tactical || TACTICAL_BONUS.test(name) || TACTICAL_OBSTACLE.test(name) || TACTICAL_SHOP.test(name) ? 4 : 1;
       im.src = assetUrl(name);
       imgs[name] = im;
     }))).then(() => {
