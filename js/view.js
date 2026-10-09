@@ -33,9 +33,12 @@
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
   const TACTICAL_CHAIN = /^ref\/items\/(wheat|chicken|cow|sugarcane|carrot|goat|edamame|pig|sunflower|corn|sheep|coffee|deer|tomato)_([0-5])$/;
   const TACTICAL_BONUS = /^ref\/items\/(toolbox|lockbox|keys)_([0-2])$/;
+  const TACTICAL_RESOURCE = /^ref\/items\/(coin|energy|brick|logs|gem|woodbox|tools)_(\d+)$/;
   const TACTICAL_OBSTACLE = /^ref\/items\/obs_(rock|tree)_[sml]$/;
   const TACTICAL_SHOP = /^ref\/(market|bakery|dairy|bbq|sweets|loom|barista|tomatocar)(_broken)?$/;
   const assetUrl = (name) => {
+    const resource = name.match(TACTICAL_RESOURCE);
+    if (resource) return `assets/ref/items/tactical_${resource[1]}_${resource[2]}.png`;
     if (TACTICAL_OBSTACLE.test(name) || TACTICAL_SHOP.test(name)) {
       const slash = name.lastIndexOf('/');
       return `assets/${name.slice(0, slash + 1)}tactical_${name.slice(slash + 1)}.png`;
@@ -71,7 +74,7 @@
       const tactical = name.match(TACTICAL_CHAIN);
       im.withered = !!tactical && tactical[2] === '5';
       im.keepWitheredColor = !!tactical && tactical[1] !== 'wheat';
-      im.exportScale = tactical || TACTICAL_BONUS.test(name) || TACTICAL_OBSTACLE.test(name) || TACTICAL_SHOP.test(name) ? 4 : 1;
+      im.exportScale = tactical || TACTICAL_BONUS.test(name) || TACTICAL_RESOURCE.test(name) || TACTICAL_OBSTACLE.test(name) || TACTICAL_SHOP.test(name) ? 4 : 1;
       im.src = assetUrl(name);
       imgs[name] = im;
     }))).then(() => {
@@ -1244,8 +1247,8 @@
       const li = [];
       (ev.recipes || []).forEach((rc) => li.push(tile(`assets/ref/products/${rc.id}.png`, rc.name, '新しいレシピ', true)));
       ev.unlocked.forEach((k) => li.push(tile(assetUrl(`ref/items/${k}_${CHAINS[k].minTier || 0}`), CHAINS[k].name, CHAINS[k].type === 'animal' ? '新しい動物' : CHAINS[k].type === 'crop' ? '新しい作物' : '新しいアイテム', true)));
-      if (ev.reward.crates) li.push(tile('assets/ref/crate_small.png', `箱 ×${ev.reward.crates}`, 'ごほうび', false));
-      if (ev.reward.energy) li.push(tile('assets/ui/tactical/bolt.svg', `エネルギー +${ev.reward.energy}`, 'ごほうび', false));
+      if (ev.reward.crates) li.push(tile(assetUrl('ref/items/woodbox_0'), `箱 ×${ev.reward.crates}`, 'ごほうび', false));
+      if (ev.reward.energy) li.push(tile(assetUrl('ref/items/energy_2'), `エネルギー +${ev.reward.energy}`, 'ごほうび', false));
       $('lu-list').innerHTML = li.join('');
       $('lu-sub').classList.toggle('off', !li.length);
       box.classList.remove('hidden');
@@ -1273,7 +1276,7 @@
       if (broken) {   // 壊れた建物: 修理に要る材料(丸太・レンガ・工具)。ドラッグして渡す
         body.innerHTML = '<p class="rep-msg">壊れています。材料を、建物へドラッグして直そう</p><div class="rep-list">' + engine.repairNeeds(bk).map((x) => {
           const ok = x.have >= x.n, no = Math.min(BUILDINGS[bk].repair[x.i].no, CHAINS[x.k].count);
-          return `<div class="rep-item"><span class="no">${CHAINS[x.k].name} ${no}番め</span><img src="assets/ref/items/${x.k}_${x.tier}.png" alt=""><b class="${ok ? 'ok' : ''}">${x.have}/${x.n}</b></div>`;
+          return `<div class="rep-item"><span class="no">${CHAINS[x.k].name} ${no}番め</span><img src="${assetUrl(`ref/items/${x.k}_${x.tier}`)}" alt=""><b class="${ok ? 'ok' : ''}">${x.have}/${x.n}</b></div>`;
         }).join('') + '</div>';
         return;
       }
@@ -1300,7 +1303,7 @@
       if (b.reward) btn = `<button class="cook-btn go" data-claim="1">受け取る</button>`;
       else if (job) btn = `<button class="cook-btn ${left <= FREE ? '' : 'none'}" data-free="1">無料</button>`;
       else btn = `<button class="cook-btn ${enough(sel) ? 'go' : ''}" data-id="${sel.id}">作る</button>`;
-      const n = sel.reward[1], coin = `assets/ref/items/coin_${sel.reward[0]}.png`;
+      const n = sel.reward[1], coin = assetUrl(`ref/items/coin_${sel.reward[0]}`);
       const timer = b.reward ? '<span class="ord-time">生産完了</span>' : job ? `<span class="ord-time"><img src="assets/ui/tactical/clock.svg" alt="">${mmss2(left)}</span>` : '';
       body.innerHTML = `<div class="ord-main"><img class="ord-npc" src="${npcImg(bk, def.recipes.indexOf(sel))}" alt="">
           <div class="ord-eq">${b.reward ? '' : needs + '<span class="ord-equal">=</span>'}<span class="ord-prodwrap"><img class="ord-prod" src="assets/ref/products/${sel.id}.png" alt="">${timer}</span></div></div>
@@ -1308,7 +1311,7 @@
         <div class="ord-list">${shops.map((k) => {
           const rc = engine.orderOf(k), cooking = !!engine.state.buildings[k].job;
           const mark = cooking ? '<img class="clk" src="assets/ui/tactical/clock.svg" alt="">' : (enough(rc) ? '<i class="bang">!</i>' : '');
-          return `<button class="ord-tile ${k === bk ? 'on' : ''}" data-shop="${k}"><img class="p" src="assets/ref/products/${rc.id}.png" alt=""><img class="c" src="assets/ref/items/coin_${rc.reward[0]}.png" alt="">${mark}</button>`;
+          return `<button class="ord-tile ${k === bk ? 'on' : ''}" data-shop="${k}"><img class="p" src="assets/ref/products/${rc.id}.png" alt=""><img class="c" src="${assetUrl(`ref/items/coin_${rc.reward[0]}`)}" alt="">${mark}</button>`;
         }).join('')}</div>`;
     }
     $('panel-body').addEventListener('click', (e) => {
