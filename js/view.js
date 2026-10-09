@@ -32,8 +32,9 @@
     'tile_cloud_tactical', 'market', 'dairy', 'bakery', 'coin', 'bolt', 'crown', 'clock', 'gem'];
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
   const TACTICAL_CHAIN = /^ref\/items\/(wheat|chicken|cow|sugarcane|carrot|goat|edamame|pig|sunflower|corn|sheep|coffee|deer|tomato)_([0-5])$/;
+  const TACTICAL_BONUS = /^ref\/items\/(toolbox|lockbox|keys)_([0-2])$/;
   const assetUrl = (name) => {
-    const match = name.match(TACTICAL_CHAIN);
+    const match = name.match(TACTICAL_CHAIN) || name.match(TACTICAL_BONUS);
     return match ? `assets/ref/items/tactical_${match[1]}_${Math.min(Number(match[2]), 4)}.png`
       : `assets/${name}.${name.startsWith('ui/tactical/') ? 'svg' : 'png'}`;
   };
@@ -64,7 +65,7 @@
       const tactical = name.match(TACTICAL_CHAIN);
       im.withered = !!tactical && tactical[2] === '5';
       im.keepWitheredColor = !!tactical && tactical[1] !== 'wheat';
-      im.exportScale = tactical ? 4 : 1;
+      im.exportScale = tactical || TACTICAL_BONUS.test(name) ? 4 : 1;
       im.src = assetUrl(name);
       imgs[name] = im;
     }))).then(() => {
@@ -1652,7 +1653,8 @@
       const seconds = Math.ceil(info.left / 1000), h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
       setText('chest-time', `${h}H ${m}M ${seconds % 60}S`);
       setText('chest-count', `${info.have}/${info.need}`);
-      if ($('chest-key').getAttribute('src') !== `assets/ref/items/keys_${info.tier}.png`) $('chest-key').src = `assets/ref/items/keys_${info.tier}.png`;
+      const keySrc = assetUrl(`ref/items/keys_${info.tier}`);
+      if ($('chest-key').getAttribute('src') !== keySrc) $('chest-key').src = keySrc;
       $('chest-key').alt = ['銅', '銀', '金'][info.tier] + 'のカギ';
       $('chest-count').classList.toggle('enough', info.have >= info.need);
       $('chest-open').disabled = info.have < info.need;
