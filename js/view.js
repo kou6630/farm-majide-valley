@@ -113,6 +113,7 @@
     const hold = { coins: 0, energy: 0, gems: 0 };
     const disp = { coins: 0, energy: 0, gems: 0, xp: 0 };
     let drag = null, lastDrop = null, lastDropFrom = null, pressed = null, panelFor = null, bdrag = null;
+    let obstacleFocus = null;
     const lvQueue = [];
 
     // ---------- 地形の準備 ----------
@@ -236,6 +237,7 @@
       cam.y = clamp(cam.y, BOUND.y0, BOUND.y1);
     }
     function resetCamera() {
+      obstacleFocus = null;
       cam.zoom = vw > vh ? clamp(Math.min(vw / 1220, vh / 700), 0.4, 1.1) : clamp(vw / 760, 0.34, 1.1);
       cam.x = OX; cam.y = OY + 200 + (vh > vw ? 60 : 40);
       clampCam();
@@ -432,7 +434,8 @@
       }
       if ((it.t === 'obs' || it.k === 'toolbox') && work && work.c === c && work.r === r) {
         const p = clamp((Date.now() - work.startedAt) / (work.endsAt - work.startedAt), 0, 1);
-        const cx = bx, cy = by - size * 0.95;
+        // 石・木の段階メーターと作業者の丸い時間表示を重ねない。
+        const cx = bx, cy = it.t === 'obs' && /^(tree|rock)_/.test(it.k) ? by + v.oy - dm.h - 46 : by - size * 0.95;
         ctx.save();
         ctx.fillStyle = '#0f1923'; ctx.beginPath(); ctx.arc(cx, cy, 24, 0, 6.283); ctx.fill();
         ctx.strokeStyle = '#91d5cf'; ctx.lineWidth = 6; ctx.lineCap = 'round';
@@ -441,15 +444,16 @@
         const w = imgs['ui/worker'];
         if (ready(w)) ctx.drawImage(w, cx - 13, cy - 13 + Math.sin(t * 10) * 1.5, 26, 26);
       }
-      if (it.t === 'obs' && /^(tree|rock)_/.test(it.k) && !o.pos) {
+      // 残り段階は選んだ障害物と作業中だけ。未作業の山へ一斉に重ねない。
+      if (it.t === 'obs' && /^(tree|rock)_/.test(it.k) && !o.pos && (obstacleFocus === it.id || work)) {
         const total = OBS_STEPS[OBSTACLES[it.k].tier], left = Math.max(0, total - (it.pend || it.step || 0));
-        const mw = 88, mh = 16, mx = bx + v.ox - mw / 2, my = by + v.oy - dm.h - 18;
+        const mw = 72, mh = 12, mx = bx + v.ox - mw / 2, my = by + v.oy - dm.h - 16;
         ctx.save();
         ctx.fillStyle = '#f7fff8'; cutRect(mx, my, mw, mh, 3); ctx.fill();
-        const sw = (mw - 6) / total;
+        const sw = (mw - 4) / total;
         for (let i = 0; i < total; i++) {
           ctx.fillStyle = i < left ? '#6bc9ad' : '#d4ddce';
-          ctx.fillRect(mx + 3 + i * sw, my + 3, sw - 1.5, mh - 6);
+          ctx.fillRect(mx + 2 + i * sw, my + 2, sw - 1, mh - 4);
         }
         ctx.restore();
       }
@@ -1384,6 +1388,7 @@
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('pointerdown', (e) => {
+      obstacleFocus = null;
       canvas.setPointerCapture(e.pointerId);
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (ptrs.size === 2) {
@@ -1448,6 +1453,7 @@
     canvas.addEventListener('pointercancel', (e) => { if (drag) cancelDrag(); endPointer(e); });
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
+      obstacleFocus = null;
       const before = s2w(e.clientX, e.clientY);
       cam.zoom *= Math.exp(-e.deltaY * 0.0014); clampCam();
       const after = s2w(e.clientX, e.clientY);
@@ -1584,6 +1590,7 @@
     });
 
     function handleTap(hit) {
+      obstacleFocus = hit && hit.type === 'cell' && hit.item && hit.item.t === 'obs' && /^(tree|rock)_/.test(hit.item.k) ? hit.item.id : null;
       hideRegrow();
       hideChest();
       if (!hit) return;
