@@ -31,9 +31,12 @@
     'tactical_road', 'tactical_tree', 'tactical_bush', 'tactical_house', 'tactical_barn', 'tactical_windmill', 'tactical_lamp', 'tactical_pond',
     'tile_cloud_tactical', 'market', 'dairy', 'bakery', 'coin', 'bolt', 'crown', 'clock', 'gem'];
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
-  const assetUrl = (name) => /^ref\/items\/wheat_[0-5]$/.test(name)
-    ? `assets/ref/items/tactical_wheat_${Math.min(Number(name.slice(-1)), 4)}.png`
-    : `assets/${name}.${name.startsWith('ui/tactical/') ? 'svg' : 'png'}`;
+  const TACTICAL_CHAIN = /^ref\/items\/(wheat|chicken|cow)_([0-5])$/;
+  const assetUrl = (name) => {
+    const match = name.match(TACTICAL_CHAIN);
+    return match ? `assets/ref/items/tactical_${match[1]}_${Math.min(Number(match[2]), 4)}.png`
+      : `assets/${name}.${name.startsWith('ui/tactical/') ? 'svg' : 'png'}`;
+  };
   function assetNames() {
     const n = [];
     Object.keys(CHAINS).forEach((k) => { for (let t = CHAINS[k].minTier || 0; t < CHAINS[k].count; t++) n.push(`ref/items/${k}_${t}`); });
@@ -57,9 +60,11 @@
       im.onload = () => { fin(); resolve(); };
       im.onerror = () => { console.warn('素材が読めません:', name); fin(); resolve(); };
       if (name.startsWith('ref/items/')) im.tight = true; // 切り出したままの絵: 足元が下端、幅が表示幅の2倍
-      // 収穫あとと枯れは同じ絵。枯れだけ描画時に暗くする。
-      im.withered = name === 'ref/items/wheat_5';
-      im.exportScale = /^ref\/items\/wheat_[0-5]$/.test(name) ? 4 : 1;
+      // 5種類目と6種類目は同じ絵。6種類目だけ描画時に暗くする。
+      const tactical = name.match(TACTICAL_CHAIN);
+      im.withered = !!tactical && tactical[2] === '5';
+      im.keepWitheredColor = !!tactical && tactical[1] !== 'wheat';
+      im.exportScale = tactical ? 4 : 1;
       im.src = assetUrl(name);
       imgs[name] = im;
     }))).then(() => {
@@ -309,8 +314,12 @@
           const lc = layer.getContext('2d'); lc.drawImage(im, 0, 0);
           const pixels = lc.getImageData(0, 0, layer.width, layer.height), data = pixels.data;
           for (let i = 0; i < data.length; i += 4) {
-            const gray = (data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722) * 0.33;
-            data[i] = data[i + 1] = data[i + 2] = gray;
+            if (im.keepWitheredColor) {
+              data[i] *= 0.33; data[i + 1] *= 0.33; data[i + 2] *= 0.33;
+            } else {
+              const gray = (data[i] * 0.2126 + data[i + 1] * 0.7152 + data[i + 2] * 0.0722) * 0.33;
+              data[i] = data[i + 1] = data[i + 2] = gray;
+            }
           }
           lc.putImageData(pixels, 0, 0); im.darkArt = layer;
         }
