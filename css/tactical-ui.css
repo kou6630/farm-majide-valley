@@ -160,10 +160,10 @@ button:disabled { cursor: default; }
 .medal { width: 68px; height: 74px; background: none; border: 0; clip-path: none; filter: drop-shadow(0 3px 2px #0b172a80); }
 .medal .medal-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .medal::before { display: none; }
-.medal-copy { position: absolute; z-index: 1; left: 9%; right: 9%; top: 28%; display: flex; flex-direction: column; align-items: center; gap: 4px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.medal-copy { position: absolute; z-index: 1; inset: 27% 12% 27%; display: grid; grid-template-rows: 8px minmax(0, 1fr); justify-items: center; gap: 1px; font-family: Arial, sans-serif; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .medal .medal-copy > span { position: static; transform: none; width: 100%; text-align: center; }
 .medal .medal-copy .medal-label { font-size: 8px; line-height: 8px; letter-spacing: 1.5px; color: #aadbd8; text-shadow: 0 1px 2px #000; }
-.medal .medal-copy #level-num { font-size: 25px; line-height: 25px; text-shadow: 0 2px 2px #00101f; }
+.medal .medal-copy #level-num { display: flex; align-items: center; justify-content: center; min-height: 0; font-size: 25px; line-height: 1; font-variant-numeric: lining-nums tabular-nums; letter-spacing: 0; text-shadow: 0 2px 2px #00101f; }
 .medal.pulse { animation: badge-celebrate .75s cubic-bezier(.2,.8,.3,1); }
 .xp-wrap { width: 94px; margin-left: -5px; background: linear-gradient(145deg,#314c5c,#152630); border: 1px solid #769da6; box-shadow: 0 3px 0 #0c1a24; }
 .xp-bar { height: 7px; background: #0b1a24; box-shadow: inset 0 1px 2px #0009; }
@@ -240,9 +240,9 @@ button:disabled { cursor: default; }
 @keyframes reward-arrive { from { opacity: 0; transform: translateY(25px) scale(.7); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (max-width: 420px) {
   .medal { width: 56px; height: 62px; }
-  .medal-copy { gap: 3px; }
+  .medal-copy { gap: 1px; }
   .medal .medal-copy .medal-label { font-size: 7px; line-height: 8px; }
-  .medal .medal-copy #level-num { font-size: 22px; line-height: 22px; }
+  .medal .medal-copy #level-num { font-size: 20px; line-height: 1; }
   .xp-wrap { width: 60px; margin-left: -4px; }
   .hud-row .pill { padding-left: 25px; min-width: 74px; }
   .pill img { width: 29px; height: 29px; left: -7px; }

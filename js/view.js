@@ -1,7 +1,7 @@
 // 画面: アイソメ(斜め見下ろし)の Canvas 描画、入力(ドラッグ/パン/ズーム)、演出、HUD、パネル
 (function (root) {
   const F = root.FMV;
-  const { TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, LAYOUT_CUSTOM, key, rectCells, xpForLevel } = F;
+  const { TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, OBS_STEPS, BUILDINGS, LANDS, DECOR, ROADS, LAYOUT_CUSTOM, key, rectCells, xpForLevel } = F;
   const { ease, tween, tweenProps, later } = F;
 
   const HW = TILE_W / 2, HH = TILE_H / 2;
@@ -441,6 +441,18 @@
         const w = imgs['ui/worker'];
         if (ready(w)) ctx.drawImage(w, cx - 13, cy - 13 + Math.sin(t * 10) * 1.5, 26, 26);
       }
+      if (it.t === 'obs' && /^(tree|rock)_/.test(it.k) && !o.pos) {
+        const total = OBS_STEPS[OBSTACLES[it.k].tier], left = Math.max(0, total - (it.pend || it.step || 0));
+        const mw = 88, mh = 16, mx = bx + v.ox - mw / 2, my = by + v.oy - dm.h - 18;
+        ctx.save();
+        ctx.fillStyle = '#f7fff8'; cutRect(mx, my, mw, mh, 3); ctx.fill();
+        const sw = (mw - 6) / total;
+        for (let i = 0; i < total; i++) {
+          ctx.fillStyle = i < left ? '#6bc9ad' : '#d4ddce';
+          ctx.fillRect(mx + 3 + i * sw, my + 3, sw - 1.5, mh - 6);
+        }
+        ctx.restore();
+      }
     }
 
     // ---------- 建物・景観 ----------
@@ -501,6 +513,14 @@
           if (ready(im2)) { const k = Math.min(44 / im2.naturalWidth, 40 / im2.naturalHeight); ctx.drawImage(im2, cx - im2.naturalWidth * k / 2, by - 28 - im2.naturalHeight * k / 2, im2.naturalWidth * k, im2.naturalHeight * k); }
           ctx.restore();
         }
+      } else if (b.reward) {
+        const by = top - 12 + Math.sin(t * 4) * 4, coin = imgs[`ref/items/coin_${b.reward.tier}`];
+        ctx.save();
+        ctx.fillStyle = '#182a34'; ctx.strokeStyle = '#e5cf97'; ctx.lineWidth = 2;
+        cutRect(cx - 28, by - 54, 56, 52, 14); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx - 8, by - 4); ctx.lineTo(cx, by + 8); ctx.lineTo(cx + 8, by - 4); ctx.fill();
+        if (ready(coin)) { const k = Math.min(44 / coin.naturalWidth, 40 / coin.naturalHeight); ctx.drawImage(coin, cx - coin.naturalWidth * k / 2, by - 28 - coin.naturalHeight * k / 2, coin.naturalWidth * k, coin.naturalHeight * k); }
+        ctx.restore();
       } else if (b.job) {
         const p = clamp((Date.now() - b.job.startedAt) / (b.job.endsAt - b.job.startedAt), 0, 1);
         ctx.fillStyle = '#0f1923'; cutRect(cx - 38, top - 8, 76, 16, 8); ctx.fill();
@@ -1158,6 +1178,11 @@
           break;
         }
         case 'recipeStart': bsquash[ev.building] = performance.now(); refreshPanel(); break;
+        case 'recipeReady':
+          bsquash[ev.building] = performance.now();
+          toast(`${ev.recipe.name}ができた! コインの吹き出しをタップして受け取ろう`);
+          refreshPanel();
+          break;
         case 'recipeDone': {
           const land = LANDS.find((l) => l.building && l.building.key === ev.building);
           const [cx, cy] = rectCenter(engine.rectOf(ev.building));
@@ -1169,8 +1194,7 @@
               v.hideUntil = performance.now() + d0; v.sx = v.sy = 0.4;
               tween({ delay: d0, dur: 520, ease: ease.linear, update(p) { const e2 = ease.outCubic(p); v.ox = (cx - dest[0]) * (1 - e2); v.oy = (cy - dest[1]) * (1 - e2) - Math.sin(p * 3.14) * 80; v.sx = v.sy = 0.4 + 0.6 * ease.outBack(p); }, done() { v.ox = 0; v.oy = 0; v.sx = v.sy = 1; } });
             });
-          } else { flyTo([cx, cy - 60], 'coins', 5, ev.coins); floater(cx, cy - 110, `+${ev.coins}`, '#ffd23f', 32); }
-          toast(`${ev.recipe.name}ができた!`);
+          }
           refreshPanel();
           break;
         }
@@ -1262,12 +1286,13 @@
       }).join('');
       const FREE = engine.consts.FREE_FINISH_MS / 1000;
       let btn;
-      if (job) btn = `<button class="cook-btn ${left <= FREE ? '' : 'none'}" data-free="1">無料</button>`;
+      if (b.reward) btn = `<button class="cook-btn go" data-claim="1">受け取る</button>`;
+      else if (job) btn = `<button class="cook-btn ${left <= FREE ? '' : 'none'}" data-free="1">無料</button>`;
       else btn = `<button class="cook-btn ${enough(sel) ? 'go' : ''}" data-id="${sel.id}">作る</button>`;
       const n = sel.reward[1], coin = `assets/ref/items/coin_${sel.reward[0]}.png`;
-      const timer = job ? `<span class="ord-time"><img src="assets/ui/tactical/clock.svg" alt="">${mmss2(left)}</span>` : '';
+      const timer = b.reward ? '<span class="ord-time">生産完了</span>' : job ? `<span class="ord-time"><img src="assets/ui/tactical/clock.svg" alt="">${mmss2(left)}</span>` : '';
       body.innerHTML = `<div class="ord-main"><img class="ord-npc" src="${npcImg(bk, def.recipes.indexOf(sel))}" alt="">
-          <div class="ord-eq">${needs}<span class="ord-equal">=</span><span class="ord-prodwrap"><img class="ord-prod" src="assets/ref/products/${sel.id}.png" alt="">${timer}</span></div></div>
+          <div class="ord-eq">${b.reward ? '' : needs + '<span class="ord-equal">=</span>'}<span class="ord-prodwrap"><img class="ord-prod" src="assets/ref/products/${sel.id}.png" alt="">${timer}</span></div></div>
         <div class="ord-bar"><span>報酬</span><img src="${coin}" alt="">${n > 1 ? `<span>×${n}</span>` : ''}${btn}</div>
         <div class="ord-list">${shops.map((k) => {
           const rc = engine.orderOf(k), cooking = !!engine.state.buildings[k].job;
@@ -1282,6 +1307,7 @@
       if (tile) { panelFor = tile.dataset.shop; refreshPanel(true); return; }
       const btn = e.target.closest('.cook-btn');
       if (!btn) return;
+      if (btn.dataset.claim) { claimShopReward(panelFor); refreshPanel(true); return; }
       if (btn.dataset.free) { engine.finishRecipeFree(panelFor); flush(); refreshPanel(true); return; }
       const res = engine.startRecipe(panelFor, btn.dataset.id);
       flush();
@@ -1313,6 +1339,15 @@
       return best;
     }
     function hitTest(wx, wy) {
+      for (const land of LANDS) {
+        if (!land.building || !engine.state.lands[land.id]) continue;
+        const bk = land.building.key, b = engine.state.buildings[bk];
+        if (!b.reward) continue;
+        const g = spriteGeom(bk);
+        if (!g) continue;
+        const [x, y] = rectCenter(engine.rectOf(bk)), by = y + g.y0 + 24 + Math.sin(performance.now() / 1000 * 4) * 4;
+        if (Math.abs(wx - x) <= 32 && wy >= by - 58 && wy <= by + 12) return { type: 'shopReward', key: bk };
+      }
       const bubble = rewardBubblePositions().reverse().find((b) => Math.hypot(wx - b.x, wy - b.y) < 32);
       if (bubble) return { type: 'rewardBubble', id: bubble.bubble.id };
       const pick = pickItem(wx, wy);
@@ -1482,6 +1517,18 @@
         drag.hoverOk = !other || other.t !== 'obs';
       }
     }
+    // 指を止めていても、持っている品物が画面端へ近づくとカメラを送る。
+    function scrollHeldItem(dt) {
+      if ((!drag && !bdrag) || pinch || ptrs.size !== 1) return;
+      const held = drag || bdrag, p = ptrs.get(held.pointerId);
+      if (!p) return;
+      const edge = Math.min(64, vw * 0.15, vh * 0.15);
+      const speed = (pos, span) => pos < edge ? -clamp((edge - pos) / edge, 0, 1) : pos > span - edge ? clamp((pos - span + edge) / edge, 0, 1) : 0;
+      const dx = speed(p.x, vw) * 560 * dt / cam.zoom, dy = speed(p.y, vh) * 560 * dt / cam.zoom;
+      if (!dx && !dy) return;
+      cam.x += dx; cam.y += dy; clampCam();
+      if (drag) updateDrag({ clientX: p.x, clientY: p.y }); else updateBDrag(p.x, p.y);
+    }
     function cancelDrag() {
       if (!drag) return;
       const it = engine.getItem(drag.from[0], drag.from[1]);
@@ -1540,7 +1587,8 @@
       hideRegrow();
       hideChest();
       if (!hit) return;
-      if (hit.type === 'rewardBubble') { const res = engine.claimRewardBubble(hit.id); flush(); if (res.reason === 'full') toast('空きマスを作ってから、泡をタップしてね'); return; }
+      if (hit.type === 'rewardBubble') { const res = engine.claimRewardBubble(hit.id); flush(); if (res.reason === 'full') toast('マスに十分な空きがありません'); return; }
+      if (hit.type === 'shopReward' || (hit.type === 'building' && engine.state.buildings[hit.key].reward)) { claimShopReward(hit.key); return; }
       if (hit.type === 'building') { openPanel(hit.key); bsquash[hit.key] = performance.now(); return; }
       if (hit.type === 'land') {
         const res = engine.buyLand(hit.land.id);
@@ -1561,13 +1609,14 @@
           wiggle(hit.c, hit.r);
           if (res.reason === 'busy') { if (engine.state.jobs.length >= engine.workerCap()) openWorkers(); else toast('この障害物は、作業中です'); }   // 作業者が足りないとき、本家の「作業者が足りません!」の画面を出す
           else if (res.reason === 'noenergy') { toast(`エネルギーが足りません (必要 ${res.need})`); const el = $('energy-pill'); el.classList.remove('warn'); void el.offsetWidth; el.classList.add('warn'); }
+          else if (res.reason === 'full') toast('マスに十分な空きがありません');
           return;
         }
         if (res.reason === 'regrow') { regrowFor = [hit.c, hit.r]; updateRegrow(); return; }
         if (res.reason === 'key') { toast(['銅', '銀', '金'][it.tier] + 'の宝箱をタップして、同じ色のカギ2個で開けよう'); return; }
         wiggle(hit.c, hit.r);
         if (res.reason === 'ingredient') toast('食材は建物にドラッグして渡そう');
-        else if (res.reason === 'full') { toast('空きマスがありません'); }
+        else if (res.reason === 'full') { toast('マスに十分な空きがありません'); }
         else if (res.reason === 'energyfull') { toast('エネルギーは満タンです'); }
         else if (res.reason === 'single') toast('同じ品物を2つ並べて、3つ目を上に重ねて合体!');
       }
@@ -1717,11 +1766,19 @@
       toast('もう一度押すと、最初からやり直します');
     });
 
+    function claimShopReward(bk) {
+      const res = engine.claimRecipe(bk);
+      flush();
+      if (res.reason === 'full') toast('マスに十分な空きがありません');
+      return res;
+    }
+
     // ---------- メインループ ----------
     let last = performance.now(), pruneAt = 0, panelAt = 0;
     const stats = { drawMs: 0 };
     function frame(now) {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      scrollHeldItem(dt);
       engine.tick();
       engine.drain().forEach(onEvent);
       F.stepTweens(now);

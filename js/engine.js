@@ -188,14 +188,8 @@
         if (b.job && t >= b.job.endsAt) {
           const rec = BUILDINGS[bk].recipes.find((x) => x.id === b.job.id);
           b.job = null;
-          const [tier, n] = rec.reward, rc = rectOf(bk), value = recipeReward(rec);
-          const spots = nearestFree(rc[0], rc[1], n), spawned = [];
-          for (let i = 0; i < n; i++) {
-            if (spots[i]) { const it = putItem(spots[i][0], spots[i][1], { t: 'chain', k: 'coin', tier }); spawned.push({ c: spots[i][0], r: spots[i][1], item: Object.assign({}, it) }); }
-            else s.coins += Math.pow(3, tier);   // 置く場所がなければ、そのまま受け取る
-          }
-          emit('recipeDone', { building: bk, recipe: rec, coins: value, spawned });
-          addXp(Math.round(value * 0.6));
+          b.reward = { id: rec.id, tier: rec.reward[0], count: rec.reward[1] };
+          emit('recipeReady', { building: bk, recipe: rec });
         }
       });
     }
@@ -441,7 +435,7 @@
       }
       const n = HARVEST_BASE + HARVEST_PER_STAR * starsOf(it.k);   // 星のレベルが上がるほど、食材が増える
       const spots = nearestFree(c, r, n);
-      if (!spots.length) return { ok: false, reason: 'full' };
+      if (spots.length < n) return { ok: false, reason: 'full' };
       const before = Object.assign({}, it);
       it.tier += 1;
       if (stage === 0) it.readyAt = now() + REGROW_MS; else delete it.readyAt;
@@ -592,17 +586,18 @@
     function claimClear(c, r) {
       const it = getItem(c, r);
       const ob = it.k === 'toolbox' ? { res: 'tools', xp: [4, 9, 27][it.tier] } : OBSTACLES[it.k], step = it.pend - 1, last = it.pend >= stepsOf(it), w = { c, r };
-      delete it.pend;
       // このステップの素材
       const drops = [];
       let coins = 0;
       const want = [];
       OBS_STAGES[step].drop.forEach(([tier, n]) => { for (let i = 0; i < n; i++) want.push(Math.min(tier, CHAINS[ob.res].count - 1)); });
       const spots = it.k === 'toolbox' ? nearestRewardFree(w.c, w.r, want.length) : nearestFree(w.c, w.r, want.length);
+      // 木・石の素材を空き不足でコインへ変換しない。回収待ちの状態を維持する。
+      if (it.k !== 'toolbox' && spots.length < want.length) return { ok: false, reason: 'full' };
+      delete it.pend;
       want.forEach((tier, i) => {
         if (spots[i]) { const g = putItem(spots[i][0], spots[i][1], { t: 'chain', k: ob.res, tier }); drops.push({ c: spots[i][0], r: spots[i][1], item: Object.assign({}, g) }); }
         else if (it.k === 'toolbox') s.rewardBubbles.push({ id: s.nextId++, c, r, item: { t: 'chain', k: 'tools', tier } });
-        else coins += CHAINS[ob.res].value[tier];   // 木・岩の既存動作
       });
       s.coins += coins;
       if (last) {
@@ -711,7 +706,7 @@
     // 同じ値段なら、解放がはやいほう。作れるものがなければ、いちばんそろっているレシピ
     function orderOf(bk) {
       const def = BUILDINGS[bk], b = s.buildings[bk];
-      if (b.job) return def.recipes.find((r) => r.id === b.job.id);
+      if (b.job || b.reward) return def.recipes.find((r) => r.id === (b.job || b.reward).id);
       const open = def.recipes.filter((r) => s.level >= (r.unlock || 1));
       if (!open.length) return null;
       const can = open.filter((rc) => Object.keys(rc.needs).every((n) => (s.inv[n] || 0) >= rc.needs[n]));
@@ -725,7 +720,7 @@
       if (!BLAND[bk] || !s.lands[BLAND[bk].id] || s.level < BLAND[bk].level) return { ok: false, reason: 'locked' };
       const b = s.buildings[bk];
       const rec = BUILDINGS[bk].recipes.find((x) => x.id === id);
-      if (!rec || b.job) return { ok: false, reason: 'busy' };
+      if (!rec || b.job || b.reward) return { ok: false, reason: 'busy' };
       if (!isRepaired(bk)) return { ok: false, reason: 'broken' };
       if (s.level < (rec.unlock || 1)) return { ok: false, reason: 'level', need: rec.unlock };
       if (orderOf(bk) !== rec) return { ok: false, reason: 'notorder' };   // ショップのいまの注文だけ作れる
@@ -733,6 +728,25 @@
       Object.keys(rec.needs).forEach((n) => { s.inv[n] -= rec.needs[n]; });
       b.job = { id, startedAt: now(), endsAt: now() + rec.secs * 1000 };
       emit('recipeStart', { building: bk, recipe: rec });
+      return { ok: true };
+    }
+
+    // 生産の報酬は吹き出しで待機。全部を置けるときだけ、マップへコインを出す。
+    function claimRecipe(bk) {
+      if (!hasShop(bk)) return { ok: false, reason: 'locked' };
+      const b = s.buildings[bk], reward = b.reward;
+      if (!reward) return { ok: false, reason: 'none' };
+      const rc = rectOf(bk), spots = nearestFree(rc[0], rc[1], reward.count);
+      if (spots.length < reward.count) return { ok: false, reason: 'full' };
+      const rec = BUILDINGS[bk].recipes.find((r) => r.id === reward.id);
+      const spawned = spots.map(([c, r]) => {
+        const it = putItem(c, r, { t: 'chain', k: 'coin', tier: reward.tier });
+        return { c, r, item: Object.assign({}, it) };
+      });
+      b.reward = null;
+      const value = Math.pow(3, reward.tier) * reward.count;
+      emit('recipeDone', { building: bk, recipe: rec, coins: value, spawned });
+      addXp(Math.round(value * 0.6));
       return { ok: true };
     }
 
@@ -857,7 +871,7 @@
       newState, load, serialize, tick, drain,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree,
       findGroup, stackGroup, mergeable, openCrate, cardOf, starsOf, useCard, mergeCards, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState,
-      startRecipe, orderOf, hasShop, isRepaired, repairNeeds, workerCap, rentWorker, crateCells, finishRecipeFree, buildingAt, feedBuilding, startClear, regrowLeft, skipRegrow, chestInfo, openChest, claimRewardBubble,
+      startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, workerCap, rentWorker, crateCells, finishRecipeFree, buildingAt, feedBuilding, startClear, regrowLeft, skipRegrow, chestInfo, openChest, claimRewardBubble,
       emitRaw: emit,
       consts: { ENERGY_REGEN_MS, CRATE_REGEN_MS, CRATE_REGEN_AMOUNT, MAX_CRATES, CARD_CAP, FREE_FINISH_MS, HARVEST_BASE, HARVEST_PER_STAR, WORKER_RENT_GEMS, WORKER_RENT_MS },
     };
