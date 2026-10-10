@@ -37,7 +37,9 @@
   const TACTICAL_INGREDIENT = /^ref\/items\/ing_(wheat|egg|milk|carrot|goatmilk|corn|tomato|sunflower|edamame|sugarcane|coffee|bacon|wool|hide)$/;
   const TACTICAL_OBSTACLE = /^ref\/items\/obs_(rock|tree)_[sml]$/;
   const TACTICAL_SHOP = /^ref\/(market|bakery|dairy|bbq|sweets|loom|barista|tomatocar)(_broken)?$/;
+  const TACTICAL_PRODUCTS = new Set(Object.values(BUILDINGS).flatMap((b) => b.recipes.map((r) => `ref/products/${r.id}`)));
   const assetUrl = (name) => {
+    if (TACTICAL_PRODUCTS.has(name)) return `assets/ref/products/tactical_${name.slice('ref/products/'.length)}.png`;
     const resource = name.match(TACTICAL_RESOURCE);
     if (resource) return `assets/ref/items/tactical_${resource[1]}_${resource[2]}.png`;
     const ingredient = name.match(TACTICAL_INGREDIENT);
@@ -1248,7 +1250,7 @@
       $('lu-level').textContent = ev.level;
       const tile = (img, name, tag, locked) => `<div class="lu-tile"><div class="lu-pic"><img class="p" src="${img}" alt="">${locked ? '<img class="lk" src="assets/ui/tactical/lock.svg" alt="">' : ''}</div><div class="lu-nm">${name}</div><div class="lu-tag">${tag}</div></div>`;
       const li = [];
-      (ev.recipes || []).forEach((rc) => li.push(tile(`assets/ref/products/${rc.id}.png`, rc.name, '新しいレシピ', true)));
+      (ev.recipes || []).forEach((rc) => li.push(tile(assetUrl(`ref/products/${rc.id}`), rc.name, '新しいレシピ', true)));
       ev.unlocked.forEach((k) => li.push(tile(assetUrl(`ref/items/${k}_${CHAINS[k].minTier || 0}`), CHAINS[k].name, CHAINS[k].type === 'animal' ? '新しい動物' : CHAINS[k].type === 'crop' ? '新しい作物' : '新しいアイテム', true)));
       if (ev.reward.crates) li.push(tile(assetUrl('ref/items/woodbox_0'), `箱 ×${ev.reward.crates}`, 'ごほうび', false));
       if (ev.reward.energy) li.push(tile(assetUrl('ref/items/energy_2'), `エネルギー +${ev.reward.energy}`, 'ごほうび', false));
@@ -1309,12 +1311,12 @@
       const n = sel.reward[1], coin = assetUrl(`ref/items/coin_${sel.reward[0]}`);
       const timer = b.reward ? '<span class="ord-time">生産完了</span>' : job ? `<span class="ord-time"><img src="assets/ui/tactical/clock.svg" alt="">${mmss2(left)}</span>` : '';
       body.innerHTML = `<div class="ord-main"><img class="ord-npc" src="${npcImg(bk, def.recipes.indexOf(sel))}" alt="">
-          <div class="ord-eq">${b.reward ? '' : needs + '<span class="ord-equal">=</span>'}<span class="ord-prodwrap"><img class="ord-prod" src="assets/ref/products/${sel.id}.png" alt="">${timer}</span></div></div>
+          <div class="ord-eq">${b.reward ? '' : needs + '<span class="ord-equal">=</span>'}<span class="ord-prodwrap"><img class="ord-prod" src="${assetUrl(`ref/products/${sel.id}`)}" alt="">${timer}</span></div></div>
         <div class="ord-bar"><span>報酬</span><img src="${coin}" alt="">${n > 1 ? `<span>×${n}</span>` : ''}${btn}</div>
         <div class="ord-list">${shops.map((k) => {
           const rc = engine.orderOf(k), cooking = !!engine.state.buildings[k].job;
           const mark = cooking ? '<img class="clk" src="assets/ui/tactical/clock.svg" alt="">' : (enough(rc) ? '<i class="bang">!</i>' : '');
-          return `<button class="ord-tile ${k === bk ? 'on' : ''}" data-shop="${k}"><img class="p" src="assets/ref/products/${rc.id}.png" alt=""><img class="c" src="${assetUrl(`ref/items/coin_${rc.reward[0]}`)}" alt="">${mark}</button>`;
+          return `<button class="ord-tile ${k === bk ? 'on' : ''}" data-shop="${k}"><img class="p" src="${assetUrl(`ref/products/${rc.id}`)}" alt=""><img class="c" src="${assetUrl(`ref/items/coin_${rc.reward[0]}`)}" alt="">${mark}</button>`;
         }).join('')}</div>`;
     }
     $('panel-body').addEventListener('click', (e) => {
