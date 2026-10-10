@@ -1270,7 +1270,7 @@
     // 本家の「オーダー」画面のように: 建物ごとに、注文は 1 つずつ。お客さんの顔 / 必要な食材 = 作れる品物 / 報酬 / 作る。下の小さな絵で、作るものを切り替える
     const NPC_N = 13;
     const bIndex = (bk) => Object.keys(BUILDINGS).indexOf(bk);
-    const npcImg = (bk, i) => `assets/ref/npc/npc_${(bIndex(bk) * 4 + i) % NPC_N}.png`;
+    const npcImg = (bk, i) => `assets/ref/npc/tactical_npc_${(bIndex(bk) * 4 + i) % NPC_N}.png`;
     function refreshPanel(force) {
       if (!panelFor) return;
       const bk = panelFor, def = BUILDINGS[bk], b = engine.state.buildings[bk], now = Date.now(), lv = engine.state.level;
