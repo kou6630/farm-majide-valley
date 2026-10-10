@@ -38,7 +38,9 @@
   const TACTICAL_OBSTACLE = /^ref\/items\/obs_(rock|tree)_[sml]$/;
   const TACTICAL_SHOP = /^ref\/(market|bakery|dairy|bbq|sweets|loom|barista|tomatocar)(_broken)?$/;
   const TACTICAL_PRODUCTS = new Set(Object.values(BUILDINGS).flatMap((b) => b.recipes.map((r) => `ref/products/${r.id}`)));
+  const TACTICAL_CARD = /^ref\/cards\/(pic_(wheat|chicken|cow|sugarcane|carrot|goat|edamame|pig|sunflower|corn|sheep|coffee|deer|tomato)|frame_[1-3]|arrow)$/;
   const assetUrl = (name) => {
+    if (TACTICAL_CARD.test(name)) return `assets/ref/cards/tactical_${name.slice('ref/cards/'.length)}.png`;
     if (TACTICAL_PRODUCTS.has(name)) return `assets/ref/products/tactical_${name.slice('ref/products/'.length)}.png`;
     const resource = name.match(TACTICAL_RESOURCE);
     if (resource) return `assets/ref/items/tactical_${resource[1]}_${resource[2]}.png`;
@@ -1752,7 +1754,7 @@
       if (event.animationName === 'cargo-button-pop') $('crate-btn').classList.remove('squash');
     });
     // ---------- アップグレードカードの画面 ----------
-    const stars = (n) => '<img src="assets/ref/cards/arrow.png" alt="">'.repeat(n);
+    const stars = (n) => `<img src="${assetUrl('ref/cards/arrow')}" alt="">`.repeat(n);
     function refreshCardsBadge() {
       let n = 0;
       Object.keys(engine.state.cards || {}).forEach((k) => { const cd = engine.state.cards[k]; if (cd.c1 + cd.c2 + cd.c3 > 0) n += cd.c1 + cd.c2 + cd.c3; });
@@ -1766,8 +1768,8 @@
         const cd = engine.cardOf(k), name = CHAINS[k].name;
         const canUse = [3, 2, 1].find((st) => cd['c' + st] > 0 && st > cd.lv);
         const canMerge = [1, 2].find((st) => cd['c' + st] >= 3);
-        const tiles = [1, 2, 3].map((st) => `<span class="ctile ${cd['c' + st] ? '' : 'zero'}"><img src="assets/ref/cards/frame_${st}.png" alt=""><b>${cd['c' + st]}</b></span>`).join('');
-        return `<div class="crow"><img class="pic" src="assets/ref/cards/pic_${k}.png" alt="">
+        const tiles = [1, 2, 3].map((st) => `<span class="ctile ${cd['c' + st] ? '' : 'zero'}"><img src="${assetUrl(`ref/cards/frame_${st}`)}" alt=""><b>${cd['c' + st]}</b></span>`).join('');
+        return `<div class="crow"><img class="pic" src="${assetUrl(`ref/cards/pic_${k}`)}" alt="">
           <div><div class="nm">${name} ${cd.lv ? stars(cd.lv) : ''}</div><div class="sub">収穫 ${engine.consts.HARVEST_BASE + engine.consts.HARVEST_PER_STAR * cd.lv} 個${cd.lv ? '(星 ' + cd.lv + ')' : ''}</div><div class="ctiles">${tiles}</div></div>
           <div class="cbtns"><button class="use" data-k="${k}" data-star="${canUse || ''}" ${canUse ? '' : 'disabled'}>${canUse ? '★' + canUse + ' を使う' : '使う'}</button><button class="mrg" data-k="${k}" data-merge="${canMerge || ''}" ${canMerge ? '' : 'disabled'}>合体</button></div></div>`;
       }).join('') || '<p class="card-sub">まだ作物・動物がありません</p>';
