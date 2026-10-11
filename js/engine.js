@@ -407,6 +407,8 @@
     // ---------- 操作 ----------
     function collectBonus(c, r) {
       const it = getItem(c, r);
+      // 建築素材は換金しない。合体・移動・修理への投入で使う。
+      if (['brick', 'logs', 'tools'].includes(it.k)) return { ok: false, reason: 'material' };
       const ch = CHAINS[it.k];
       const v = ch.value[it.tier];
       let gained = v;
