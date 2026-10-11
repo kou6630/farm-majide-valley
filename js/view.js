@@ -1310,7 +1310,9 @@
       const FREE = engine.consts.FREE_FINISH_MS / 1000;
       let btn;
       if (b.reward) btn = `<button class="cook-btn go" data-claim="1">受け取る</button>`;
-      else if (job) btn = `<button class="cook-btn ${left <= FREE ? '' : 'none'}" data-free="1">無料</button>`;
+      else if (job) btn = left <= FREE
+        ? '<button class="cook-btn" data-free="1">無料</button>'
+        : `<button class="cook-btn rush" data-skip="1" aria-label="ダイヤ${engine.recipeSkipInfo(bk).cost}個で生産を即完了"><img src="${assetUrl('ref/gem')}" alt="ダイヤ"><b>${engine.recipeSkipInfo(bk).cost}</b><span>即完了</span></button>`;
       else btn = `<button class="cook-btn ${enough(sel) ? 'go' : ''}" data-id="${sel.id}">作る</button>`;
       const n = sel.reward[1], coin = assetUrl(`ref/items/coin_${sel.reward[0]}`);
       const timer = b.reward ? '<span class="ord-time">生産完了</span>' : job ? `<span class="ord-time"><img src="${assetUrl('ref/clock')}" alt="">${mmss2(left)}</span>` : '';
@@ -1332,6 +1334,12 @@
       if (!btn) return;
       if (btn.dataset.claim) { claimShopReward(panelFor); refreshPanel(true); return; }
       if (btn.dataset.free) { engine.finishRecipeFree(panelFor); flush(); refreshPanel(true); return; }
+      if (btn.dataset.skip) {
+        const res = engine.skipRecipe(panelFor);
+        flush(); refreshPanel(true);
+        if (!res.ok && res.reason === 'nogems') toast(`ダイヤが足りません (必要 ${res.cost})`);
+        return;
+      }
       const res = engine.startRecipe(panelFor, btn.dataset.id);
       flush();
       if (!res.ok) { toast(res.reason === 'level' ? `レベル ${res.need} で作れるようになります` : res.reason === 'busy' ? 'このショップは、いま作っています' : '食材が足りません'); }
@@ -1585,27 +1593,32 @@
       if (res.same || res.merged) { lastDrop = null; if (res.same) revert(); }
     }
 
-    // ---------- 回復中のふきだし ----------
+    // ---------- 回復・撤去の待ち時間を進めるふきだし ----------
     let regrowFor = null;
     const hideRegrow = () => { regrowFor = null; $('regrow').classList.add('hidden'); };
     function updateRegrow() {
       if (!regrowFor) return;
-      const [c, r] = regrowFor, it = engine.getItem(c, r);
-      const left = it ? engine.regrowLeft(it) : 0;
-      if (!it || left <= 0) { hideRegrow(); return; }
+      const { c, r, kind, id } = regrowFor, it = engine.getItem(c, r);
+      const work = kind === 'clear' ? engine.clearSkipInfo(c, r) : null;
+      const left = kind === 'clear' ? (work ? work.left : 0) : (it ? engine.regrowLeft(it) : 0);
+      if (!it || it.id !== id || left <= 0) { hideRegrow(); return; }
       const [bx, by] = tileFeet(c, r), dm = dimsOf(it), [sx, sy] = w2s(bx, by - dm.h * 0.5), el = $('regrow');
-      el.style.left = clamp(sx, 96, vw - 96) + 'px'; el.style.top = Math.max(sy - 18, 130) + 'px';
       const sec = Math.ceil(left / 1000), h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
       const txt = h > 0 ? `${h}H ${m}M ${sec % 60}S` : `${m}M ${sec % 60}S`;
       setText('rg-time', txt); setText('rg-cost', String(Math.ceil(left / 60000)));
+      setText('rg-title', kind === 'clear' ? '作業中' : '回復中');
+      $('rg-skip').setAttribute('aria-label', `ダイヤ${Math.ceil(left / 60000)}個で${kind === 'clear' ? '今の作業' : '回復'}を即完了`);
       el.classList.remove('hidden');
+      el.style.left = clamp(sx, 96, vw - 96) + 'px'; el.style.top = clamp(sy - 18, el.offsetHeight + 12, vh - 12) + 'px';
     }
     $('rg-skip').addEventListener('click', () => {
       if (!regrowFor) return;
-      const res = engine.skipRegrow(regrowFor[0], regrowFor[1]);
+      const { c, r, kind, id } = regrowFor;
+      if (!engine.getItem(c, r) || engine.getItem(c, r).id !== id) { hideRegrow(); return; }
+      const res = kind === 'clear' ? engine.skipClear(c, r) : engine.skipRegrow(c, r);
       flush();
       if (res.ok) { hideRegrow(); return; }
-      if (res.reason === 'nogems') { toast(`ジェムが足りません (必要 ${res.cost})`); const el = $('gem-pill'); el.classList.remove('warn'); void el.offsetWidth; el.classList.add('warn'); }
+      if (res.reason === 'nogems') { toast(`ダイヤが足りません (必要 ${res.cost})`); const el = $('gem-pill'); el.classList.remove('warn'); void el.offsetWidth; el.classList.add('warn'); }
     });
 
     function handleTap(hit) {
@@ -1628,6 +1641,7 @@
       if (hit.type === 'cell' && hit.item) {
         const it = hit.item;
         if (it.k === 'lockbox') { chestFor = { c: hit.c, r: hit.r, id: it.id }; updateChest(); return; }
+        if (engine.clearSkipInfo(hit.c, hit.r)) { regrowFor = { c: hit.c, r: hit.r, kind: 'clear', id: it.id }; updateRegrow(); return; }
         const res = engine.tap(hit.c, hit.r);
         flush();
         if (res.ok) return;
@@ -1638,7 +1652,7 @@
           else if (res.reason === 'full') toast('マスに十分な空きがありません');
           return;
         }
-        if (res.reason === 'regrow') { regrowFor = [hit.c, hit.r]; updateRegrow(); return; }
+        if (res.reason === 'regrow') { regrowFor = { c: hit.c, r: hit.r, kind: 'regrow', id: it.id }; updateRegrow(); return; }
         if (res.reason === 'key') { toast(['銅', '銀', '金'][it.tier] + 'の宝箱をタップして、同じ色のカギ2個で開けよう'); return; }
         wiggle(hit.c, hit.r);
         if (res.reason === 'ingredient') toast('食材は建物にドラッグして渡そう');

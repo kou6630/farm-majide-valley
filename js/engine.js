@@ -426,7 +426,8 @@
     // 収穫。動物は、収穫すると消える。作物は、収穫できる(4)→ 収穫あと(5)→ 枯れ(6)と変わり、枯れをタップすると片づく
     // 収穫あと(5 段階め)の、のこりの待ち時間(ミリ秒)。はじめの収穫あとは readyAt がない古い保存データも、すぐ収穫できる
     const regrowLeft = (it) => Math.max(0, (it.readyAt || 0) - now());
-    const skipCost = (it) => Math.ceil(regrowLeft(it) / 60000);
+    const timeSkipCost = (ms) => Math.ceil(Math.max(0, ms) / 60000);
+    const skipCost = (it) => timeSkipCost(regrowLeft(it));
     function harvest(c, r) {
       const it = getItem(c, r), ch = CHAINS[it.k];
       const stage = it.tier - ch.max;   // 0 = 収穫できる、1 = 収穫あと(1 時間は回復中)、2 = 枯れ
@@ -584,6 +585,24 @@
       if (!it || (it.t !== 'obs' && it.k !== 'toolbox')) return;
       it.pend = w.step + 1;   // 終わったステップの数。素材は、まだ出ない
       emit('clearDone', { c: w.c, r: w.r, item: Object.assign({}, it), step: it.pend, of: stepsOf(it) });
+    }
+    function clearSkipInfo(c, r) {
+      const job = s.jobs.find((j) => j.c === c && j.r === r && !j.rewardBubbleId);
+      const it = getItem(c, r);
+      if (!job || !it || (it.t !== 'obs' && it.k !== 'toolbox')) return null;
+      const left = Math.max(0, job.endsAt - now());
+      return { left, cost: timeSkipCost(left) };
+    }
+    // 現在の撤去ステップだけを完了。素材の受け取りは通常どおりタップで行う。
+    function skipClear(c, r) {
+      const info = clearSkipInfo(c, r);
+      if (!info) return { ok: false, reason: 'none' };
+      if (s.gems < info.cost) return { ok: false, reason: 'nogems', cost: info.cost };
+      const job = s.jobs.find((j) => j.c === c && j.r === r && !j.rewardBubbleId);
+      s.gems -= info.cost;
+      finishClear(job);
+      emit('clearSkipped', { c, r, cost: info.cost });
+      return { ok: true, cost: info.cost };
     }
     function claimClear(c, r) {
       const it = getItem(c, r);
@@ -752,14 +771,27 @@
       return { ok: true };
     }
 
+    function recipeSkipInfo(bk) {
+      if (!hasShop(bk) || !s.buildings[bk].job) return null;
+      const left = Math.max(0, s.buildings[bk].job.endsAt - now());
+      return { left, cost: left <= FREE_FINISH_MS ? 0 : timeSkipCost(left) };
+    }
+    function skipRecipe(bk) {
+      const info = recipeSkipInfo(bk);
+      if (!info) return { ok: false, reason: 'none' };
+      if (s.gems < info.cost) return { ok: false, reason: 'nogems', cost: info.cost };
+      s.gems -= info.cost;
+      s.buildings[bk].job.endsAt = now();
+      tick();
+      emit('recipeSkipped', { building: bk, cost: info.cost });
+      return { ok: true, cost: info.cost };
+    }
     // 作っている間の「無料」: 残りが FREE_FINISH_MS 以下なら、すぐできあがる
     function finishRecipeFree(bk) {
-      const b = s.buildings[bk];
-      if (!b.job) return { ok: false, reason: 'none' };
-      if (b.job.endsAt - now() > FREE_FINISH_MS) return { ok: false, reason: 'long' };
-      b.job.endsAt = now();
-      tick();
-      return { ok: true };
+      const info = recipeSkipInfo(bk);
+      if (!info) return { ok: false, reason: 'none' };
+      if (info.cost > 0) return { ok: false, reason: 'long' };
+      return skipRecipe(bk);
     }
 
     // ---------- 土地 ----------
@@ -873,7 +905,7 @@
       newState, load, serialize, tick, drain,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree,
       findGroup, stackGroup, mergeable, openCrate, cardOf, starsOf, useCard, mergeCards, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState,
-      startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, workerCap, rentWorker, crateCells, finishRecipeFree, buildingAt, feedBuilding, startClear, regrowLeft, skipRegrow, chestInfo, openChest, claimRewardBubble,
+      startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, skipRegrow, chestInfo, openChest, claimRewardBubble,
       emitRaw: emit,
       consts: { ENERGY_REGEN_MS, CRATE_REGEN_MS, CRATE_REGEN_AMOUNT, MAX_CRATES, CARD_CAP, FREE_FINISH_MS, HARVEST_BASE, HARVEST_PER_STAR, WORKER_RENT_GEMS, WORKER_RENT_MS },
     };
