@@ -1654,9 +1654,9 @@
         }
         if (res.reason === 'regrow') { regrowFor = { c: hit.c, r: hit.r, kind: 'regrow', id: it.id }; updateRegrow(); return; }
         if (res.reason === 'key') { toast(['銅', '銀', '金'][it.tier] + 'の宝箱をタップして、同じ色のカギ2個で開けよう'); return; }
+        if (res.reason === 'material') return;
         wiggle(hit.c, hit.r);
         if (res.reason === 'ingredient') toast('食材は建物にドラッグして渡そう');
-        else if (res.reason === 'material') toast('レンガ・木材・工具は換金できません');
         else if (res.reason === 'full') { toast('マスに十分な空きがありません'); }
         else if (res.reason === 'energyfull') { toast('エネルギーは満タンです'); }
         else if (res.reason === 'single') toast('同じ品物を2つ並べて、3つ目を上に重ねて合体!');
