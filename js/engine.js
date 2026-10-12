@@ -286,7 +286,7 @@
         s.level += 1;
         const rw = levelUpReward(s.level);
         s.crates += rw.crates;
-        s.energy = Math.min(MAX_ENERGY, s.energy + rw.energy);
+        s.energy += rw.energy; // 市場やご褒美で得たスタミナは自然回復の上限を超えて保持する。
         const unlocked = Object.keys(CHAINS).filter((k) => CHAINS[k].unlock === s.level && CHAINS[k].type !== 'bonus');
         const recipes = [];
         Object.keys(BUILDINGS).forEach((bk) => BUILDINGS[bk].recipes.forEach((rc) => { if (rc.unlock === s.level) recipes.push({ building: BUILDINGS[bk].name, name: rc.name, id: rc.id }); }));
@@ -832,6 +832,49 @@
       return { ok: true };
     }
 
+    // ---------- 市場 ----------
+    function marketInfo() {
+      const t = now();
+      if (!s.market) s.market = { expiresAt: t + D.MARKET_REFRESH_MS, bought: {}, freeAt: {}, demoPurchases: 0 };
+      const m = s.market;
+      if (t >= m.expiresAt) { m.expiresAt += (Math.floor((t - m.expiresAt) / D.MARKET_REFRESH_MS) + 1) * D.MARKET_REFRESH_MS; m.bought = {}; }
+      return {
+        left: Math.max(0, m.expiresAt - t), expiresAt: m.expiresAt,
+        deals: D.MARKET_DEALS.map(d => ({ ...d, remaining: Math.max(0, d.stock - (m.bought[d.id] || 0)) })),
+        packs: D.MARKET_PACKS.map(p => ({ ...p, left: p.free ? Math.max(0, (m.freeAt[p.id] || 0) - t) : 0 })),
+      };
+    }
+    function buyMarket(id, options = {}) {
+      const info = marketInfo(), m = s.market;
+      const deal = info.deals.find(d => d.id === id), p = deal || info.packs.find(p => p.id === id);
+      if (!p) return { ok: false, reason: 'none' };
+      if (deal && p.remaining <= 0) return { ok: false, reason: 'soldout' };
+      if (p.level && s.level < p.level) return { ok: false, reason: 'level', need: p.level };
+      if (p.free && p.left > 0) return { ok: false, reason: 'cooldown' };
+      if (p.currency === 'demo' && options.demoConfirmed !== true) return { ok: false, reason: 'demoConfirm' };
+      if (!p.free && p.currency !== 'demo' && s[p.currency] < p.price) return { ok: false, reason: p.currency === 'gems' ? 'nogems' : 'coins', cost: p.price };
+      if (!p.free && p.currency !== 'demo') s[p.currency] -= p.price;
+      let delivered = null;
+      if (deal) {
+        m.bought[id] = (m.bought[id] || 0) + 1;
+        const origin = ownedCells()[0] || [0, 0];
+        delivered = placeRewards(...origin, Array.from({ length: p.n }, () => ({ ...p.item })));
+        emit('rewardClaimed', { c: origin[0], r: origin[1], ...delivered });
+      } else {
+        s[p.kind] += p.n;
+        if (p.free) m.freeAt[id] = now() + D.MARKET_FREE_MS;
+        if (p.currency === 'demo') m.demoPurchases = (m.demoPurchases || 0) + 1;
+      }
+      return { ok: true, id, n: p.n, kind: p.kind, demo: p.currency === 'demo', ...delivered };
+    }
+    function refreshMarket() {
+      marketInfo();
+      if (s.gems < D.MARKET_RESET_GEMS) return { ok: false, reason: 'nogems', cost: D.MARKET_RESET_GEMS };
+      s.gems -= D.MARKET_RESET_GEMS;
+      s.market.expiresAt = now() + D.MARKET_REFRESH_MS; s.market.bought = {};
+      return { ok: true };
+    }
+
     // ---------- 保存 ----------
     function serialize() { return JSON.stringify(s); }
     function load(json) {
@@ -919,7 +962,7 @@
 
     return {
       get state() { return s; },
-      newState, load, serialize, tick, drain,
+      newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree,
       findGroup, stackGroup, mergeable, openCrate, cardOf, starsOf, useCard, mergeCards, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
       startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, skipRegrow, chestInfo, openChest, claimRewardBubble,

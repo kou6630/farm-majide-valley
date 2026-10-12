@@ -24,6 +24,8 @@
     },
   });
 
+  const market = F.createMarket(engine, view, save);
+
   F.loadAssets((p) => { $('loading-fill').style.width = Math.round(p * 100) + '%'; }).then(() => {
     view.start();
     $('loading').classList.add('done');
@@ -34,5 +36,5 @@
   });
 
   // デバッグ用(開発中にコンソールから触れる)
-  window.__fmv = { engine, view, save };
+  window.__fmv = { engine, view, market, save };
 })();

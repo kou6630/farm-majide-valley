@@ -261,10 +261,29 @@
   // レベルアップの報酬(本家と同じ): Lv2〜3 は無し、Lv4 は箱 20、Lv5 から箱 10 とエネルギー 10
   const levelUpReward = (lv) => (lv <= 3 ? { crates: 0, energy: 0 } : lv === 4 ? { crates: 20, energy: 0 } : { crates: 10, energy: 10 });
 
+  // 市場。通貨パックは残高へ、特売の品物は盤面(満杯なら報酬の泡)へ届ける。
+  const MARKET_REFRESH_MS = 4 * 3600000, MARKET_FREE_MS = 24 * 3600000, MARKET_RESET_GEMS = 99;
+  const MARKET_DEALS = [
+    { id: 'milk', name: 'ミルク', n: 9, stock: 5, currency: 'gems', price: 36, image: 'assets/ref/items/tactical_ing_milk.png', item: { t: 'ing', k: 'milk' } },
+    { id: 'toolbox', name: 'ツールボックス', n: 1, stock: 2, currency: 'gems', price: 199, image: 'assets/ref/items/tactical_toolbox_0.png', item: { t: 'chain', k: 'toolbox', tier: 0 } },
+    { id: 'wheat', name: '小麦の苗', n: 1, stock: 5, currency: 'coins', price: 50, image: 'assets/ref/items/tactical_wheat_1.png', item: { t: 'chain', k: 'wheat', tier: 1 } },
+    { id: 'brick', name: 'レンガ', n: 1, stock: 2, currency: 'gems', price: 27, image: 'assets/ref/items/tactical_brick_2.png', item: { t: 'chain', k: 'brick', tier: 2 } },
+    { id: 'keys', name: 'ブロンズキー', n: 1, stock: 2, currency: 'gems', price: 45, level: 12, image: 'assets/ref/items/tactical_keys_0.png', item: { t: 'chain', k: 'keys', tier: 0 } },
+    { id: 'logs', name: '木材', n: 1, stock: 2, currency: 'gems', price: 150, image: 'assets/ref/items/tactical_logs_3.png', item: { t: 'chain', k: 'logs', tier: 3 } },
+  ];
+  const MARKET_PACKS = [];
+  const pack = (kind, amounts, prices, images) => amounts.forEach((n, i) => MARKET_PACKS.push({
+    id: kind + '-' + n, kind, n, price: prices[i], currency: kind === 'gems' && i > 0 ? 'demo' : 'gems', free: i === 0,
+    image: 'assets/ref/market/' + images[i] + '.png', badge: i === 4 ? '人気' : i === 5 ? '大容量' : '',
+  }));
+  pack('crates', [10,30,90,200,375,1000], [0,20,50,110,200,450], ['cargo-small','cargo-small','cargo-medium','cargo-medium','cargo-large','cargo-large']);
+  pack('energy', [5,80,300,500,800,2000], [0,80,270,400,600,1200], ['stamina-small','stamina-small','stamina-medium','stamina-medium','stamina-large','stamina-large']);
+  pack('gems', [5,200,900,3500], [0,'2.99','9.99','29.99'], ['gems-small','gems-medium','gems-large','gems-featured']);
+
   // レシピの報酬の合計(コインの額)
   const recipeReward = (rc) => Math.pow(3, rc.reward[0]) * rc.reward[1];
 
-  const api = { TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS };
+  const api = { TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS, MARKET_DEALS, MARKET_PACKS, MARKET_REFRESH_MS, MARKET_FREE_MS, MARKET_RESET_GEMS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FMV = Object.assign(root.FMV || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

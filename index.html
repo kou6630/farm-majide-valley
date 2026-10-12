@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0f1923">
 <title>ファームまじでValley</title>
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/tactical-ui.css?v=20261012-shovel-cards">
+<link rel="stylesheet" href="css/tactical-ui.css?v=20261012-market">
 <link rel="icon" type="image/svg+xml" href="assets/ui/tactical/cargo.svg">
 </head>
 <body>
@@ -31,13 +31,13 @@
       </div>
       <div id="gem-pill" class="pill">
         <img src="assets/ref/tactical_gem.png" alt="ジェム">
-        <span id="gem-num">0</span>
+        <span id="gem-num">0</span><button id="gem-add" class="resource-add" aria-label="ジェムの市場を開く">＋</button>
       </div>
     </div>
     <div id="energy-pill" class="pill small">
       <img src="assets/ref/tactical_bolt.png" alt="エネルギー">
       <span id="energy-num">50</span><small>/50</small>
-      <em id="energy-timer"></em>
+      <em id="energy-timer"></em><button id="energy-add" class="resource-add" aria-label="スタミナの市場を開く">＋</button>
     </div>
   </div>
 </div>
@@ -55,6 +55,7 @@
 <button id="worker-chip" class="worker-btn" aria-label="作業者"><img src="assets/ref/tactical_hardhat.png" alt=""><span id="worker-text">0/1</span></button>
 
 <div id="farm-tools" class="farm-tools">
+  <button id="btn-market" class="farm-tool" aria-label="市場を開く" aria-controls="market"><img src="assets/ref/market/market.png" alt=""><span>市場</span><b id="market-badge" class="tool-badge">!</b></button>
   <button id="btn-cards" class="farm-tool" aria-label="強化カードを開く" aria-controls="cards"><img src="assets/ref/cards/tactical_frame_1.png" alt=""><span>強化</span><b id="cards-badge" class="tool-badge hidden">0</b></button>
   <button id="shovel-btn" class="farm-tool" aria-label="シャベルをアイテムへドラッグして消す" title="アイテムへドラッグして消す"><img src="assets/ref/tactical_shovel.png" alt="シャベル" draggable="false"><span>シャベル</span></button>
 </div>
@@ -131,6 +132,18 @@
   <p class="lu-tap">タップして続ける</p>
 </div>
 
+<div id="market" class="market-overlay hidden">
+  <div id="market-dialog" class="market-dialog" role="dialog" aria-modal="true" aria-labelledby="market-title">
+    <header class="market-header"><div><small>VALLEY / SUPPLY STATION</small><h1 id="market-title">市場</h1></div><button id="market-close" aria-label="市場を閉じる">×</button></header>
+    <div class="market-wallet"><span><img src="assets/ref/tactical_coin.png" alt="コイン"><b id="market-coin-balance">0</b></span><span><img src="assets/ref/tactical_gem.png" alt="ジェム"><b id="market-gem-balance">0</b></span></div>
+    <nav id="market-tabs" aria-label="市場の商品カテゴリ"><button data-section="deals">特売</button><button data-section="crates">物資箱</button><button data-section="energy">スタミナ</button><button data-section="gems">ジェム</button></nav>
+    <div id="market-scroll" class="market-scroll"><div id="market-content"></div></div>
+    <p id="market-message" class="market-message hidden" role="status"></p>
+    <footer class="market-footer">無料パックは24時間ごとに受け取り可能</footer>
+    <div id="market-confirm" class="market-confirm hidden" role="alertdialog" aria-modal="true" aria-labelledby="market-confirm-title" aria-describedby="market-confirm-copy"><div><h2 id="market-confirm-title"></h2><p id="market-confirm-copy"></p><button id="market-confirm-ok"></button><button id="market-confirm-cancel">キャンセル</button></div></div>
+  </div>
+</div>
+
 <div id="loading" class="loading">
   <div class="loading-brand"><span>FARM</span><strong>まじでValley</strong><i>MERGE &amp; BUILD</i></div>
   <div class="loading-box">
@@ -140,10 +153,11 @@
 </div>
 
 <script src="js/layout.js"></script>
-<script src="js/data.js?v=20261012-shovel-cards"></script>
-<script src="js/engine.js?v=20261012-shovel-cards"></script>
+<script src="js/data.js?v=20261012-market"></script>
+<script src="js/engine.js?v=20261012-market"></script>
 <script src="js/fx.js"></script>
-<script src="js/view.js?v=20261012-shovel-cards"></script>
-<script src="js/main.js"></script>
+<script src="js/view.js?v=20261012-market"></script>
+<script src="js/market.js?v=20261012-market"></script>
+<script src="js/main.js?v=20261012-market"></script>
 </body>
 </html>
