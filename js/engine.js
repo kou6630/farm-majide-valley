@@ -327,8 +327,9 @@
     }
 
     // ---------- 合体 ----------
-    function sameKind(a, b) { return a && b && a.t === 'chain' && b.t === 'chain' && a.k === b.k && a.tier === b.tier; }
-    function mergeable(it) { return !!it && it.t === 'chain' && it.k !== 'toolbox' && it.k !== 'woodbox' && it.tier < CHAINS[it.k].max && (it.k !== 'lockbox' || !it.expiresAt || it.expiresAt > now()); }
+    const validCard = (it) => !!it && it.t === 'card' && CHAINS[it.k] && CHAINS[it.k].type !== 'bonus' && Number.isInteger(it.tier) && it.tier >= 0 && it.tier <= 2;
+    function sameKind(a, b) { return a && b && a.t === b.t && (a.t === 'chain' || a.t === 'card') && a.k === b.k && a.tier === b.tier; }
+    function mergeable(it) { return validCard(it) ? it.tier < 2 : !!it && it.t === 'chain' && it.k !== 'toolbox' && it.k !== 'woodbox' && it.tier < CHAINS[it.k].max && (it.k !== 'lockbox' || !it.expiresAt || it.expiresAt > now()); }
 
     // 上下左右でつながった同じ品物の集合(起点に近い順)
     function findGroup(c, r) {
@@ -357,7 +358,7 @@
       used.forEach(([x, y]) => { delete s.items[key(x, y)]; });
 
       const created = [];
-      const mk = (x, y) => { const it = putItem(x, y, { t: 'chain', k: base.k, tier: newTier }); created.push({ c: x, r: y, item: Object.assign({}, it) }); };
+      const mk = (x, y) => { const it = putItem(x, y, { t: base.t, k: base.k, tier: newTier }); created.push({ c: x, r: y, item: Object.assign({}, it) }); };
       mk(c, r);
       if (n === 5) mk(used[1][0], used[1][1]);
 
@@ -476,30 +477,48 @@
     }
 
     // ---------- アップグレードカード ----------
-    const cardOf = (k) => s.cards[k] || (s.cards[k] = { c1: 0, c2: 0, c3: 0, lv: 0, spent: 0 });
+    const cardOf = (k) => s.cards[k] || (s.cards[k] = { lv: 0, spent: 0 });
     const starsOf = (k) => (s.cards && s.cards[k] ? s.cards[k].lv : 0);
     function maybeDropCard(k, c, r) {
       const cd = cardOf(k);
       if (cd.lv >= 3 || rng() >= CARD_DROP_RATE) return false;
-      cd.c1 += 1;
+      const delivered = placeRewards(c, r, [{ t: 'card', k, tier: 0 }]);
+      emit('rewardClaimed', { c, r, ...delivered });
       emit('card', { k, star: 1, c, r });
       return true;
     }
     // カードを使う: 星 star のカードで、星のレベルが star になる(1 から 3 へ、とばしてもよい)
-    function useCard(k, star) {
-      const cd = cardOf(k);
-      if (!(star >= 1 && star <= 3) || cd['c' + star] <= 0 || star <= cd.lv) return { ok: false, reason: 'cant' };
-      cd['c' + star] -= 1; cd.lv = star; cd.spent += CARD_UNITS[star];
-      emit('cardUsed', { k, star });
+    function cardInfo(c, r) {
+      const it = getItem(c, r);
+      if (!validCard(it) || !isOwned(c, r)) return null;
+      const lv = starsOf(it.k), star = it.tier + 1;
+      return { id: it.id, k: it.k, star, lv, canUse: star > lv,
+        harvest: HARVEST_BASE + HARVEST_PER_STAR * lv,
+        nextHarvest: HARVEST_BASE + HARVEST_PER_STAR * star };
+    }
+    function useCard(c, r, id) {
+      const info = cardInfo(c, r);
+      if (!info || info.id !== id) return { ok: false, reason: 'none' };
+      if (!info.canUse) return { ok: false, reason: 'upgraded' };
+      const { k, star } = info, cd = cardOf(k), item = { ...getItem(c, r) };
+      delete s.items[key(c, r)];
+      cd.lv = star; cd.spent = (cd.spent || 0) + CARD_UNITS[star];
+      emit('cardUsed', { k, star, c, r, item });
       return { ok: true };
     }
-    // カードの合体: 星 star のカード 3 枚が、星 star+1 のカード 1 枚になる
-    function mergeCards(k, star) {
-      const cd = cardOf(k);
-      if (!(star === 1 || star === 2) || cd['c' + star] < 3) return { ok: false, reason: 'cant' };
-      cd['c' + star] -= 3; cd['c' + (star + 1)] += 1;
-      emit('cardMerged', { k, star: star + 1 });
-      return { ok: true };
+    // 旧一覧の枚数を一度だけ盤面・泡へ移す。強化状態はそのまま保存する。
+    function migrateCards() {
+      const origin = ownedCells()[0] || [0, 0];
+      Object.entries(s.cards).forEach(([k, cd]) => {
+        if (!CHAINS[k] || CHAINS[k].type === 'bonus') return;
+        const rewards = [];
+        [1, 2, 3].forEach(star => {
+          const count = Math.max(0, Math.floor(Number(cd['c' + star]) || 0));
+          for (let i = 0; i < count; i++) rewards.push({ t: 'card', k, tier: star - 1 });
+          delete cd['c' + star];
+        });
+        if (rewards.length) placeRewards(...origin, rewards);
+      });
     }
 
     // タップ: 合体できるなら合体、できなければ収穫/回収/撤去
@@ -510,6 +529,7 @@
       if (it.k === 'toolbox') return it.pend ? claimClear(c, r) : startClear(c, r);
       if (it.t === 'obs') return it.pend ? claimClear(c, r) : startClear(c, r);
       if (mergeable(it) && tryMerge(c, r)) return { ok: true, merged: true };
+      if (validCard(it)) return { ok: false, reason: 'card', info: cardInfo(c, r) };
       if (it.k === 'keys') return { ok: false, reason: 'key', tier: it.tier };
       if (it.t === 'chain') {
         const ch = CHAINS[it.k];
@@ -556,7 +576,7 @@
       if (coveredBy(c, r) || !isOwned(c, r)) return { ok: false, reason: 'protected' };
       const it = getItem(c, r);
       if (!it || it.id !== id) return { ok: false, reason: 'none' };
-      if (!((it.t === 'chain' && CHAINS[it.k]) || (it.t === 'ing' && INGREDIENTS[it.k])) ||
+      if (!((it.t === 'chain' && CHAINS[it.k]) || (it.t === 'ing' && INGREDIENTS[it.k]) || validCard(it)) ||
           it.t === 'obs' || (it.k === 'toolbox' && it.pend) ||
           s.jobs.some((j) => j.c === c && j.r === r && !j.rewardBubbleId)) return { ok: false, reason: 'protected' };
       return { ok: true };
@@ -895,6 +915,7 @@
         }
         Object.keys(BUILDINGS).forEach((k) => { if (!s.buildings[k]) s.buildings[k] = { job: null, repaired: !BUILDINGS[k].repair, paid: {} }; else { if (s.buildings[k].repaired === undefined) s.buildings[k].repaired = true; if (!s.buildings[k].paid) s.buildings[k].paid = {}; } });
         migrateShopClouds();
+        migrateCards();
         tick();
         return true;
       } catch (e) { return false; }
@@ -964,7 +985,7 @@
       get state() { return s; },
       newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree,
-      findGroup, stackGroup, mergeable, openCrate, cardOf, starsOf, useCard, mergeCards, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
+      findGroup, stackGroup, mergeable, openCrate, cardOf, starsOf, cardInfo, useCard, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
       startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, skipRegrow, chestInfo, openChest, claimRewardBubble,
       emitRaw: emit,
       consts: { ENERGY_REGEN_MS, CRATE_REGEN_MS, CRATE_REGEN_AMOUNT, MAX_CRATES, FREE_FINISH_MS, HARVEST_BASE, HARVEST_PER_STAR, WORKER_RENT_GEMS, WORKER_RENT_MS },

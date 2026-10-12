@@ -359,3 +359,15 @@ button:disabled { cursor: default; }
 #market-tabs button.on { color: #fff0df; box-shadow: inset 0 -3px #ff6475; background: #243946; }
 .resource-add { pointer-events: auto; }
 .market-section:last-child { min-height: calc(min(810px,100dvh - 32px) - 180px); }
+
+/* 盤面の強化カード・作物の情報。 */
+.card-popover { position: fixed; z-index: 25; width: min(300px, calc(100vw - 16px)); transform: translateX(-50%); padding: 16px; box-sizing: border-box; color: #eef7f4; background: linear-gradient(145deg,#293f4c,#122734); border: 1px solid #91afb8; border-top: 3px solid #ff6873; box-shadow: 0 8px 24px #06131faa; }
+.card-popover h2 { margin: 0 32px 10px 0; font-size: 16px; }
+.card-popover p { margin: 8px 0; font-size: 13px; line-height: 1.55; }
+#card-status { color: #ffe097; font-weight: 700; }
+#card-help { color: #aac3c8; font-size: 12px; }
+#card-close { position: absolute; top: 0; right: 0; width: 44px; height: 44px; color: #eef7f4; background: transparent; border: none; font-size: 24px; cursor: pointer; }
+#card-use { width: 100%; min-height: 44px; margin-top: 4px; border: 1px solid #ffc4b9; background: #da5367; color: white; font-weight: 700; cursor: pointer; }
+#card-use:disabled { opacity: .55; cursor: default; }
+.card-popover button:focus-visible { outline: 2px solid #a7f8df; outline-offset: 2px; }
+.rg-growth { margin: 6px 0; color: #ffe097; font-size: 12px; font-weight: 700; white-space: nowrap; }

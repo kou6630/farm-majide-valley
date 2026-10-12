@@ -35,7 +35,7 @@
     }
     function open(section = 'deals') {
       opener = document.activeElement;
-      ['cards','workers','regrow','panel','chest'].forEach(id => $(id).classList.add('hidden'));
+      ['card-popover','workers','regrow','panel','chest'].forEach(id => $(id).classList.add('hidden'));
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       render(); $('market-message').classList.add('hidden'); modal.classList.remove('hidden'); scrollTo(section);
       $('market-close').focus();

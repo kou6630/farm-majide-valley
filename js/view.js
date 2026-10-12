@@ -99,10 +99,28 @@
   }
   const ready = (im) => !!(im && im.complete && im.naturalWidth);
   const spriteOf = (it) => {
+    if (it.t === 'card') return cardSprite(it);
     if (it.t === 'chain') return imgs[`ref/items/${it.k}_${it.tier}`];
     if (it.t === 'ing') return imgs[`ref/items/ing_${it.k}`];
     return imgs['ref/items/' + OBSTACLES[it.k].sprite];
   };
+
+  // 既存の枠・作物絵を重ね、盤面・移動・合体・泡で同じカードを描く。
+  const cardSprites = {};
+  function cardSprite(it) {
+    const cacheKey = it.k + ':' + it.tier;
+    if (cardSprites[cacheKey]) return cardSprites[cacheKey];
+    const frame = imgs['ref/cards/frame_' + (it.tier + 1)], pic = imgs['ref/cards/pic_' + it.k];
+    if (!ready(frame) || !ready(pic)) return null;
+    const art = document.createElement('canvas'); art.width = 320; art.height = 448;
+    const cx = art.getContext('2d'); cx.drawImage(frame, 0, 0, 320, 448);
+    const scale = Math.min(248 / pic.naturalWidth, 248 / pic.naturalHeight);
+    const w = pic.naturalWidth * scale, h = pic.naturalHeight * scale;
+    cx.drawImage(pic, (320 - w) / 2, 188 - h / 2, w, h);
+    art.complete = true; art.naturalWidth = 320; art.naturalHeight = 448;
+    art.tight = true; art.exportScale = 2;
+    return cardSprites[cacheKey] = art;
+  }
 
   // ---------- 座標(アイソメ) ----------
   // 連続タイル座標 (cc, rr) → ワールド座標。タイル (c,r) の上の頂点 = (cc=c, rr=r)
@@ -444,9 +462,9 @@
         const ck = imgs['ui/clock'];
         if (ready(ck)) { const sc = 1 + 0.05 * Math.sin(t * 3 + v.phase); ctx.drawImage(ck, bx + v.ox - 24 * sc, by + v.oy - dm.h * 0.42 - 24 * sc, 48 * sc, 51 * sc); }
       }
-      if (isMax && !o.pos) {   // 星のレベル: 黄色い矢印
+      if (it.t === 'chain' && CHAINS[it.k].type !== 'bonus' && !o.pos) {   // 全段階・回復中にも強化の矢印を表示
         const lv = engine.starsOf(it.k), ar = imgs['ref/cards/arrow'];
-        if (lv > 0 && ready(ar)) { const byB = by + v.oy - Math.max(0, dm.h - 100) - 112 + Math.sin(t * 3.2) * 3; for (let i = 0; i < lv; i++) ctx.drawImage(ar, bx + v.ox + 28 + i * 19, byB - 20, 18, 24); }   // 吹き出しの右がわに並べる
+        if (lv > 0 && ready(ar)) { const byB = by + v.oy - Math.max(dm.h, 60) - (isMax ? 42 : 20); for (let i = 0; i < lv; i++) ctx.drawImage(ar, bx + v.ox - lv * 10 + i * 20, byB, 18, 24); }
       }
       if (it.t === 'chain' && CHAINS[it.k].type === 'bonus' && it.tier >= 2) {
         const k = (t * 1.1 + v.phase) % 2;
@@ -1109,6 +1127,7 @@
         }
         case 'chestExpired': { const [x, y] = tileCenter(ev.c, ev.r); puff(x, y, 6, '#dbe5ef', 40); break; }
         case 'harvest': {
+          toast(`${CHAINS[ev.item.k].name} 強化 ${engine.starsOf(ev.item.k)}/3・収穫 ${ev.spawned.length} 個`);
           const [cx, cy] = tileCenter(ev.c, ev.r), [bx, by] = tileFeet(ev.c, ev.r);
           addFx(340, (p) => ghostDraw(ev.item, bx, by, { sx: (1 + 0.25 * Math.sin(p * 3.14)) * (1 - p * 0.9), sy: (1 - 0.18 * Math.sin(p * 3.14)) * (1 - p * 0.9), alpha: 1 - p * p }));
           burst(cx, cy - 20, 14, { size: 17, colors: ['#fff7a8', '#ffd23f', '#ffffff'] });
@@ -1178,8 +1197,12 @@
           break;
         }
         case 'card': break;
-        case 'cardUsed': toast(`${CHAINS[ev.k].name} が ★${ev.star} になった!(収穫が増えます)`); renderCards(); refreshCardsBadge(); break;
-        case 'cardMerged': renderCards(); refreshCardsBadge(); break;
+        case 'cardUsed': {
+          const [x, y] = tileFeet(ev.c, ev.r);
+          burst(x, y - 60, 16, { size: 16 }); ring(x, y, '#ffd35a', 100);
+          toast(`${CHAINS[ev.k].name} 強化 ${ev.star}/3・収穫 ${engine.consts.HARVEST_BASE + engine.consts.HARVEST_PER_STAR * ev.star} 個`);
+          hideCard(); break;
+        }
         case 'repaired': {   // 建物が直った
           const [bx, by] = rectCenter(engine.rectOf(ev.building));
           puff(bx, by, 10, '#d8c9a8', 70); burst(bx, by - 40, 16, { size: 16 }); ring(bx, by, '#fff7a8', 140);
@@ -1460,7 +1483,7 @@
     }
     $('shovel-btn').addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-      e.preventDefault(); cancelDrag(); hideRegrow(); hideChest();
+      e.preventDefault(); cancelDrag(); hideRegrow(); hideChest(); hideCard();
       shovelDrag = { pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, touch: isTouch(e), moved: false, hit: null, ok: false };
       $('shovel-btn').setPointerCapture(e.pointerId); $('shovel-btn').classList.add('held'); $('shovel-cursor').classList.remove('hidden'); updateShovel(e);
     });
@@ -1476,7 +1499,7 @@
     $('shovel-btn').addEventListener('lostpointercapture', cancelShovel);
     $('shovel-btn').addEventListener('click', (e) => { if (e.detail === 0) toast('シャベルを不要なアイテムへドラッグして、離すと消せます'); });
     window.addEventListener('blur', cancelShovel);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelShovel(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { cancelShovel(); hideCard(); } });
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('pointerdown', (e) => {
@@ -1493,7 +1516,7 @@
       if (ptrs.size > 2) return;
       const [wx, wy] = s2w(e.clientX, e.clientY);
       const hit = hitTest(wx, wy);
-      hideChest();
+      hideChest(); hideCard();
       pressed = { id: e.pointerId, sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, hit, moved: false, t0: performance.now(), touch: isTouch(e) };
       if (e.button === 0 || e.pointerType !== 'mouse') {
         if (hit && hit.type === 'cell' && hit.item && hit.item.t !== 'obs' && hit.item.k !== 'woodbox' && !(hit.item.k === 'toolbox' && (hit.item.pend || engine.state.jobs.some((j) => j.c === hit.c && j.r === hit.r)))) pressed.dragCandidate = { c: hit.c, r: hit.r, item: hit.item };
@@ -1673,6 +1696,8 @@
       const txt = h > 0 ? `${h}H ${m}M ${sec % 60}S` : `${m}M ${sec % 60}S`;
       setText('rg-time', txt); setText('rg-cost', String(Math.ceil(left / 60000)));
       setText('rg-title', kind === 'clear' ? '作業中' : '回復中');
+      $('rg-growth').classList.toggle('hidden', kind === 'clear');
+      if (kind !== 'clear') { const lv = engine.starsOf(it.k); setText('rg-growth', `強化 ${lv}/3・収穫 ${engine.consts.HARVEST_BASE + engine.consts.HARVEST_PER_STAR * lv} 個`); }
       $('rg-skip').setAttribute('aria-label', `ジェム${Math.ceil(left / 60000)}個で${kind === 'clear' ? '今の作業' : '回復'}を即完了`);
       el.classList.remove('hidden');
       el.style.left = clamp(sx, 96, vw - 96) + 'px'; el.style.top = clamp(sy - 18, el.offsetHeight + 12, vh - 12) + 'px';
@@ -1690,7 +1715,7 @@
     function handleTap(hit) {
       obstacleFocus = hit && hit.type === 'cell' && hit.item && hit.item.t === 'obs' && /^(tree|rock)_/.test(hit.item.k) ? hit.item.id : null;
       hideRegrow();
-      hideChest();
+      hideChest(); hideCard();
       if (!hit) return;
       if (hit.type === 'rewardBubble') { const res = engine.claimRewardBubble(hit.id); flush(); if (res.reason === 'full') toast('マスに十分な空きがありません'); return; }
       if (hit.type === 'shopReward' || (hit.type === 'building' && engine.state.buildings[hit.key].reward)) { claimShopReward(hit.key); return; }
@@ -1711,6 +1736,7 @@
         const res = engine.tap(hit.c, hit.r);
         flush();
         if (res.ok) return;
+        if (res.reason === 'card') { cardFor = { c: hit.c, r: hit.r, id: it.id }; updateCard(); return; }
         if (it.t === 'obs' || it.k === 'toolbox') {
           wiggle(hit.c, hit.r);
           if (res.reason === 'busy') { if (engine.state.jobs.length >= engine.workerCap()) openWorkers(); else toast('この障害物は、作業中です'); }   // 作業者が足りないとき、本家の「作業者が足りません!」の画面を出す
@@ -1725,7 +1751,10 @@
         if (res.reason === 'ingredient') toast('食材は建物にドラッグして渡そう');
         else if (res.reason === 'full') { toast('マスに十分な空きがありません'); }
         else if (res.reason === 'energyfull') { toast('エネルギーは満タンです'); }
-        else if (res.reason === 'single') toast('同じ品物を2つ並べて、3つ目を上に重ねて合体!');
+        else if (res.reason === 'single') {
+          if (it.t === 'chain' && CHAINS[it.k].type !== 'bonus') { cardFor = { c: hit.c, r: hit.r, id: it.id }; updateCard(); }
+          else toast('同じ品物を2つ並べて、3つ目を上に重ねて合体!');
+        }
       }
     }
 
@@ -1787,7 +1816,7 @@
       $('xp-fill').style.width = clamp(disp.xp / need, 0, 1) * 100 + '%';
       setText('xp-text', `${s.xp}/${need}`);
       setText('energy-timer', s.energy < MAX_ENERGY ? mmss(engine.consts.ENERGY_REGEN_MS - (t - s.lastEnergyAt)) : 'MAX');
-      refreshCardsBadge();
+      updateCard();
       updateRegrow();
       updateChest();
       setText('crate-count', s.crates + '/' + engine.consts.MAX_CRATES);
@@ -1836,34 +1865,35 @@
     $('crate-btn').addEventListener('animationend', (event) => {
       if (event.animationName === 'cargo-button-pop') $('crate-btn').classList.remove('squash');
     });
-    // ---------- アップグレードカードの画面 ----------
-    const stars = (n) => `<img src="${assetUrl('ref/cards/arrow')}" alt="">`.repeat(n);
-    function refreshCardsBadge() {
-      let n = 0;
-      Object.keys(engine.state.cards || {}).forEach((k) => { const cd = engine.state.cards[k]; if (cd.lv < 3) n += cd.c1 + cd.c2 + cd.c3; });
-      if (lastText['cards-badge'] === n) return;
-      lastText['cards-badge'] = n;
-      const b = $('cards-badge'); if (b) { b.textContent = String(n); b.classList.toggle('hidden', n <= 0); }
+    // 盤面のカードを選ぶと、効果を表示して使用できる。
+    let cardFor = null, cardPressId = null;
+    function hideCard() { cardFor = null; cardPressId = null; $('card-popover').classList.add('hidden'); }
+    function updateCard() {
+      if (!cardFor) return;
+      if (['market', 'workers', 'panel'].some(id => !$(id).classList.contains('hidden'))) { hideCard(); return; }
+      const { c, r, id } = cardFor, it = engine.getItem(c, r);
+      if (!it || it.id !== id || !engine.isOwned(c, r)) { hideCard(); return; }
+      const info = engine.cardInfo(c, r), lv = engine.starsOf(it.k), name = CHAINS[it.k].name;
+      setText('card-title', info ? `${name}の強化カード ↑${info.star}` : name);
+      setText('card-status', `強化 ${lv}/3・収穫 ${engine.consts.HARVEST_BASE + engine.consts.HARVEST_PER_STAR * lv} 個`);
+      setText('card-effect', info ? info.canUse ? `強化 ${info.star}/3・収穫 ${info.nextHarvest} 個になります` : lv === 3 ? 'この種類は最大まで強化済みです' : '現在の強化より低いカードです。合体で段階を上げよう' : '同じ品物を3個で合体。5個なら次の段階が2個できます');
+      setText('card-help', info ? info.star < 3 ? '同じ種類・同じ段階を3枚で合体。5枚なら2枚できます' : '強化は盤面の同じ種類すべてに反映されます' : '収穫時に強化カードが出ることがあります');
+      $('card-use').classList.toggle('hidden', !info); $('card-use').disabled = !info || !info.canUse;
+      $('card-use').textContent = info && info.canUse ? '強化する' : '強化済み';
+      const el = $('card-popover'); el.classList.remove('hidden');
+      const [bx, by] = tileFeet(c, r), [sx, sy] = w2s(bx, by - dimsOf(it).h);
+      const half = el.offsetWidth / 2;
+      el.style.left = clamp(sx, half + 8, vw - half - 8) + 'px';
+      el.style.top = clamp(sy - el.offsetHeight - 12, 110, Math.max(110, vh - el.offsetHeight - 100)) + 'px';
     }
-    function renderCards() {
-      const s = engine.state, ks = Object.keys(CHAINS).filter((k) => CHAINS[k].type !== 'bonus' && CHAINS[k].unlock <= s.level);
-      $('cards-list').innerHTML = ks.map((k) => {
-        const cd = engine.cardOf(k), name = CHAINS[k].name;
-        const canUse = [3, 2, 1].find((st) => cd['c' + st] > 0 && st > cd.lv);
-        const canMerge = cd.lv < 3 && [1, 2].find((st) => cd['c' + st] >= 3);
-        const tiles = [1, 2, 3].map((st) => `<span class="ctile ${cd['c' + st] ? '' : 'zero'}"><img src="${assetUrl(`ref/cards/frame_${st}`)}" alt=""><b>${cd['c' + st]}</b></span>`).join('');
-        return `<div class="crow"><img class="pic" src="${assetUrl(`ref/cards/pic_${k}`)}" alt="">
-          <div><div class="nm">${name} ${cd.lv ? stars(cd.lv) : ''}</div><div class="sub">収穫 ${engine.consts.HARVEST_BASE + engine.consts.HARVEST_PER_STAR * cd.lv} 個${cd.lv ? '(星 ' + cd.lv + ')' : ''}</div><div class="ctiles">${tiles}</div></div>
-          <div class="cbtns"><button class="use" data-k="${k}" data-star="${canUse || ''}" ${canUse ? '' : 'disabled'}>${cd.lv >= 3 ? '強化済み' : canUse ? '★' + canUse + ' を使う' : '使う'}</button><button class="mrg" data-k="${k}" data-merge="${canMerge || ''}" ${canMerge ? '' : 'disabled'}>合体</button></div></div>`;
-      }).join('') || '<p class="card-sub">まだ作物・動物がありません</p>';
-    }
-    $('btn-cards').addEventListener('click', () => { cancelShovel(); hideRegrow(); hideChest(); renderCards(); $('cards').classList.remove('hidden'); });
-    $('cards-close').addEventListener('click', () => $('cards').classList.add('hidden'));
-    $('cards-list').addEventListener('click', (e) => {
-      const b = e.target.closest('button'); if (!b || b.disabled) return;
-      if (b.dataset.star) engine.useCard(b.dataset.k, +b.dataset.star);
-      else if (b.dataset.merge) engine.mergeCards(b.dataset.k, +b.dataset.merge);
-      flush();
+    $('card-close').addEventListener('click', hideCard);
+    $('card-use').addEventListener('pointerdown', () => { cardPressId = cardFor && cardFor.id; });
+    $('card-use').addEventListener('pointercancel', () => { cardPressId = null; });
+    $('card-use').addEventListener('click', event => {
+      if (!cardFor || (event.detail !== 0 && cardPressId !== cardFor.id)) return;
+      const { c, r, id } = cardFor; cardPressId = null;
+      const res = engine.useCard(c, r, id); flush();
+      if (res.ok) hideCard(); else updateCard();
     });
 
     // 公開ページでは confirm() が使えないので、二度押しで確認する
