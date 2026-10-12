@@ -29,7 +29,7 @@
   const REF = ['g_a0', 'g_a1', 'g_a2', 'g_a3', 'g_a4', 'g_a5', 'g_a6', 'g_a7', 'g_a8', 'g_b0', 'g_b1', 'g_b2', 'g_b3', 'g_b4', 'g_b5', 'g_b6',
     'g_tactical_light', 'g_tactical_dark',
     'tactical_road', 'tactical_tree', 'tactical_bush', 'tactical_house', 'tactical_barn', 'tactical_windmill', 'tactical_lamp', 'tactical_pond',
-    'tile_cloud_tactical', 'market', 'dairy', 'bakery', 'coin', 'bolt', 'crown', 'clock', 'gem', 'francine', 'foreman', 'hand', 'orders', 'hardhat'];
+    'tile_cloud_tactical', 'market', 'dairy', 'bakery', 'coin', 'bolt', 'crown', 'clock', 'gem', 'francine', 'foreman', 'hand', 'orders', 'hardhat', 'tactical_shovel'];
   const SHOP_KEYS = ['market', 'bakery', 'dairy', 'bbq', 'sweets', 'loom', 'barista', 'tomatocar'];
   const TACTICAL_CHAIN = /^ref\/items\/(wheat|chicken|cow|sugarcane|carrot|goat|edamame|pig|sunflower|corn|sheep|coffee|deer|tomato)_([0-5])$/;
   const TACTICAL_BONUS = /^ref\/items\/(toolbox|lockbox|keys)_([0-2])$/;
@@ -133,6 +133,7 @@
     const disp = { coins: 0, energy: 0, gems: 0, xp: 0 };
     let drag = null, lastDrop = null, lastDropFrom = null, pressed = null, panelFor = null, bdrag = null;
     let obstacleFocus = null;
+    let shovelDrag = null;
     const lvQueue = [];
 
     // ---------- 地形の準備 ----------
@@ -803,6 +804,12 @@
         ctx.restore();
       }
 
+      if (shovelDrag && shovelDrag.hit && shovelDrag.hit.type === 'cell') {
+        ctx.save(); diamondPath(shovelDrag.hit.c, shovelDrag.hit.r, 3);
+        ctx.fillStyle = shovelDrag.ok ? 'rgba(145,213,207,.35)' : 'rgba(255,101,113,.3)'; ctx.fill();
+        ctx.strokeStyle = shovelDrag.ok ? '#91d5cf' : '#ff6571'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
+      }
+
       // ドラッグ中の強調(タイル)
       if (drag && drag.hover) {
         const info = previewInfo();
@@ -1147,6 +1154,29 @@
           break;
         }
         case 'clearStart': break;
+        case 'itemDug': {
+          const [bx, by] = tileFeet(ev.c, ev.r);
+          // 2回掘り込み、品物を沈めて土を跳ね上げる。報酬・通貨は発生させない。
+          addFx(900, (p) => {
+            const sink = clamp((p - .23) / .4, 0, 1), fade = clamp((1 - p) / .22, 0, 1);
+            ctx.save(); ctx.globalAlpha = fade;
+            ctx.fillStyle = '#433428'; ctx.beginPath(); ctx.ellipse(bx, by - 7, 28 * Math.sin(Math.PI * Math.min(p * 1.4, 1)), 10, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            ghostDraw(ev.item, bx, by + 25 * sink, { sx: 1 - .5 * sink, sy: 1 - .6 * sink, alpha: 1 - sink });
+            const shovel = imgs['ref/tactical_shovel'], thrust = Math.sin(Math.min(p, .8) / .4 * Math.PI);
+            if (ready(shovel)) {
+              ctx.save(); ctx.globalAlpha = fade; ctx.translate(bx + 20, by - 40 + 18 * Math.abs(thrust)); ctx.rotate(-.55 + .65 * thrust);
+              ctx.drawImage(shovel, -48, -70, 110, 110); ctx.restore();
+            }
+            if (p > .22) for (let i = 0; i < 8; i++) {
+              const q = (p - .22) / .78, side = i % 2 ? 1 : -1;
+              ctx.save(); ctx.globalAlpha = (1 - q) * fade; ctx.fillStyle = i % 3 ? '#a07a4d' : '#d0ae73';
+              ctx.translate(bx + side * q * (25 + i * 7), by - 8 - Math.sin(q * Math.PI) * (20 + i * 5)); ctx.rotate(q * i);
+              ctx.fillRect(-3, -2, 6, 4); ctx.restore();
+            }
+          });
+          break;
+        }
         case 'card': break;
         case 'cardUsed': toast(`${CHAINS[ev.k].name} が ★${ev.star} になった!(収穫が増えます)`); renderCards(); refreshCardsBadge(); break;
         case 'cardMerged': renderCards(); refreshCardsBadge(); break;
@@ -1312,7 +1342,7 @@
       if (b.reward) btn = `<button class="cook-btn go" data-claim="1">受け取る</button>`;
       else if (job) btn = left <= FREE
         ? '<button class="cook-btn" data-free="1">無料</button>'
-        : `<button class="cook-btn rush" data-skip="1" aria-label="ダイヤ${engine.recipeSkipInfo(bk).cost}個で生産を即完了"><img src="${assetUrl('ref/gem')}" alt="ダイヤ"><b>${engine.recipeSkipInfo(bk).cost}</b><span>即完了</span></button>`;
+        : `<button class="cook-btn rush" data-skip="1" aria-label="ジェム${engine.recipeSkipInfo(bk).cost}個で生産を即完了"><img src="${assetUrl('ref/gem')}" alt="ジェム"><b>${engine.recipeSkipInfo(bk).cost}</b><span>即完了</span></button>`;
       else btn = `<button class="cook-btn ${enough(sel) ? 'go' : ''}" data-id="${sel.id}">作る</button>`;
       const n = sel.reward[1], coin = assetUrl(`ref/items/coin_${sel.reward[0]}`);
       const timer = b.reward ? '<span class="ord-time">生産完了</span>' : job ? `<span class="ord-time"><img src="${assetUrl('ref/clock')}" alt="">${mmss2(left)}</span>` : '';
@@ -1337,7 +1367,7 @@
       if (btn.dataset.skip) {
         const res = engine.skipRecipe(panelFor);
         flush(); refreshPanel(true);
-        if (!res.ok && res.reason === 'nogems') toast(`ダイヤが足りません (必要 ${res.cost})`);
+        if (!res.ok && res.reason === 'nogems') toast(`ジェムが足りません (必要 ${res.cost})`);
         return;
       }
       const res = engine.startRecipe(panelFor, btn.dataset.id);
@@ -1413,8 +1443,44 @@
     let pinch = null;
     const isTouch = (e) => e.pointerType === 'touch' || e.pointerType === 'pen';
 
+    function updateShovel(e) {
+      if (!shovelDrag) return;
+      shovelDrag.moved ||= Math.hypot(e.clientX - shovelDrag.sx, e.clientY - shovelDrag.sy) > 8;
+      const [wx, wy] = s2w(e.clientX, e.clientY), hit = hitTest(wx, wy);
+      const overUI = document.elementFromPoint(e.clientX, e.clientY) !== canvas;
+      shovelDrag.hit = overUI ? null : hit;
+      shovelDrag.ok = !overUI && hit && hit.type === 'cell' && hit.item && engine.digInfo(hit.c, hit.r, hit.item.id).ok;
+      const el = $('shovel-cursor'); el.style.left = clamp(e.clientX, 86, vw - 86) + 'px';
+      el.style.top = clamp(e.clientY - (shovelDrag.touch ? 42 : 10), 48, vh - 72) + 'px';
+      el.classList.toggle('valid', !!shovelDrag.ok); el.classList.toggle('blocked', !shovelDrag.ok);
+      el.querySelector('span').textContent = shovelDrag.ok ? '離して消す' : hit && ['building', 'shopReward'].includes(hit.type) ? '建物は消せません' : hit && hit.item ? 'この対象は消せません' : 'アイテムに重ねて離す';
+    }
+    function cancelShovel() {
+      shovelDrag = null; $('shovel-cursor').classList.add('hidden'); $('shovel-btn').classList.remove('held');
+    }
+    $('shovel-btn').addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault(); cancelDrag(); hideRegrow(); hideChest();
+      shovelDrag = { pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, touch: isTouch(e), moved: false, hit: null, ok: false };
+      $('shovel-btn').setPointerCapture(e.pointerId); $('shovel-btn').classList.add('held'); $('shovel-cursor').classList.remove('hidden'); updateShovel(e);
+    });
+    $('shovel-btn').addEventListener('pointermove', (e) => { if (shovelDrag && shovelDrag.pointerId === e.pointerId) updateShovel(e); });
+    $('shovel-btn').addEventListener('pointerup', (e) => {
+      if (!shovelDrag || shovelDrag.pointerId !== e.pointerId) return;
+      updateShovel(e); const d = shovelDrag; cancelShovel();
+      if (!d.moved) { toast('シャベルを不要なアイテムへドラッグして、離すと消せます'); return; }
+      if (d.ok && d.hit) { engine.digItem(d.hit.c, d.hit.r, d.hit.item.id); flush(); }
+      else if (d.hit && (d.hit.item || ['building', 'shopReward'].includes(d.hit.type))) toast('建物・設備・撤去対象・作業中の品物は消せません');
+    });
+    $('shovel-btn').addEventListener('pointercancel', cancelShovel);
+    $('shovel-btn').addEventListener('lostpointercapture', cancelShovel);
+    $('shovel-btn').addEventListener('click', (e) => { if (e.detail === 0) toast('シャベルを不要なアイテムへドラッグして、離すと消せます'); });
+    window.addEventListener('blur', cancelShovel);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelShovel(); });
+
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('pointerdown', (e) => {
+      if (shovelDrag) return;
       obstacleFocus = null;
       canvas.setPointerCapture(e.pointerId);
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1607,7 +1673,7 @@
       const txt = h > 0 ? `${h}H ${m}M ${sec % 60}S` : `${m}M ${sec % 60}S`;
       setText('rg-time', txt); setText('rg-cost', String(Math.ceil(left / 60000)));
       setText('rg-title', kind === 'clear' ? '作業中' : '回復中');
-      $('rg-skip').setAttribute('aria-label', `ダイヤ${Math.ceil(left / 60000)}個で${kind === 'clear' ? '今の作業' : '回復'}を即完了`);
+      $('rg-skip').setAttribute('aria-label', `ジェム${Math.ceil(left / 60000)}個で${kind === 'clear' ? '今の作業' : '回復'}を即完了`);
       el.classList.remove('hidden');
       el.style.left = clamp(sx, 96, vw - 96) + 'px'; el.style.top = clamp(sy - 18, el.offsetHeight + 12, vh - 12) + 'px';
     }
@@ -1618,7 +1684,7 @@
       const res = kind === 'clear' ? engine.skipClear(c, r) : engine.skipRegrow(c, r);
       flush();
       if (res.ok) { hideRegrow(); return; }
-      if (res.reason === 'nogems') { toast(`ダイヤが足りません (必要 ${res.cost})`); const el = $('gem-pill'); el.classList.remove('warn'); void el.offsetWidth; el.classList.add('warn'); }
+      if (res.reason === 'nogems') { toast(`ジェムが足りません (必要 ${res.cost})`); const el = $('gem-pill'); el.classList.remove('warn'); void el.offsetWidth; el.classList.add('warn'); }
     });
 
     function handleTap(hit) {
@@ -1774,7 +1840,7 @@
     const stars = (n) => `<img src="${assetUrl('ref/cards/arrow')}" alt="">`.repeat(n);
     function refreshCardsBadge() {
       let n = 0;
-      Object.keys(engine.state.cards || {}).forEach((k) => { const cd = engine.state.cards[k]; if (cd.c1 + cd.c2 + cd.c3 > 0) n += cd.c1 + cd.c2 + cd.c3; });
+      Object.keys(engine.state.cards || {}).forEach((k) => { const cd = engine.state.cards[k]; if (cd.lv < 3) n += cd.c1 + cd.c2 + cd.c3; });
       if (lastText['cards-badge'] === n) return;
       lastText['cards-badge'] = n;
       const b = $('cards-badge'); if (b) { b.textContent = String(n); b.classList.toggle('hidden', n <= 0); }
@@ -1784,13 +1850,14 @@
       $('cards-list').innerHTML = ks.map((k) => {
         const cd = engine.cardOf(k), name = CHAINS[k].name;
         const canUse = [3, 2, 1].find((st) => cd['c' + st] > 0 && st > cd.lv);
-        const canMerge = [1, 2].find((st) => cd['c' + st] >= 3);
+        const canMerge = cd.lv < 3 && [1, 2].find((st) => cd['c' + st] >= 3);
         const tiles = [1, 2, 3].map((st) => `<span class="ctile ${cd['c' + st] ? '' : 'zero'}"><img src="${assetUrl(`ref/cards/frame_${st}`)}" alt=""><b>${cd['c' + st]}</b></span>`).join('');
         return `<div class="crow"><img class="pic" src="${assetUrl(`ref/cards/pic_${k}`)}" alt="">
           <div><div class="nm">${name} ${cd.lv ? stars(cd.lv) : ''}</div><div class="sub">収穫 ${engine.consts.HARVEST_BASE + engine.consts.HARVEST_PER_STAR * cd.lv} 個${cd.lv ? '(星 ' + cd.lv + ')' : ''}</div><div class="ctiles">${tiles}</div></div>
-          <div class="cbtns"><button class="use" data-k="${k}" data-star="${canUse || ''}" ${canUse ? '' : 'disabled'}>${canUse ? '★' + canUse + ' を使う' : '使う'}</button><button class="mrg" data-k="${k}" data-merge="${canMerge || ''}" ${canMerge ? '' : 'disabled'}>合体</button></div></div>`;
+          <div class="cbtns"><button class="use" data-k="${k}" data-star="${canUse || ''}" ${canUse ? '' : 'disabled'}>${cd.lv >= 3 ? '強化済み' : canUse ? '★' + canUse + ' を使う' : '使う'}</button><button class="mrg" data-k="${k}" data-merge="${canMerge || ''}" ${canMerge ? '' : 'disabled'}>合体</button></div></div>`;
       }).join('') || '<p class="card-sub">まだ作物・動物がありません</p>';
     }
+    $('btn-cards').addEventListener('click', () => { cancelShovel(); hideRegrow(); hideChest(); renderCards(); $('cards').classList.remove('hidden'); });
     $('cards-close').addEventListener('click', () => $('cards').classList.add('hidden'));
     $('cards-list').addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b || b.disabled) return;

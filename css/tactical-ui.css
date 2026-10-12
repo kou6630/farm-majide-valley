@@ -238,6 +238,20 @@ button:disabled { cursor: default; }
 @keyframes badge-celebrate { 0%,100% { transform: scale(1); } 30% { transform: translateY(-5px) scale(1.25) rotate(-9deg); } 65% { transform: scale(.95) rotate(5deg); } }
 @keyframes resource-catch { 0%,100% { transform: translateY(0) scale(1); } 35% { transform: translateY(-8px) scale(1.25) rotate(-10deg); } 65% { transform: translateY(2px) scale(.95); } }
 @keyframes panel-reveal { from { opacity: 0; transform: translateY(18px) scale(.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* 左の作業者ボタンの下に、小さな道具列をまとめる。 */
+.farm-tools { position: fixed; z-index: 6; left: 10px; top: calc(158px + var(--safe-t)); display: flex; flex-direction: column; gap: 9px; }
+.farm-tool { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 58px; min-height: 64px; padding: 4px; border: 1px solid var(--ui-line); border-bottom: 3px solid #081c2b; background: linear-gradient(145deg,#314d5a,#172d3c); color: var(--ui-text); font-size: 10px; font-weight: 700; cursor: pointer; }
+.farm-tool img { width: 39px; height: 39px; object-fit: contain; pointer-events: none; user-select: none; }
+.farm-tool.held { border-color: var(--ui-mint); background: #3c6267; }
+#shovel-btn { touch-action: none; }
+.tool-badge { position: absolute; top: -7px; right: -7px; min-width: 20px; padding: 2px 4px; border-radius: 10px; background: var(--ui-red); color: #10222e; font-size: 11px; }
+.shovel-cursor { position: fixed; z-index: 35; width: 86px; height: 86px; transform: translate(-50%,-50%); pointer-events: none; }
+.shovel-cursor img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 3px 3px #06192799); }
+.shovel-cursor span { position: absolute; left: 50%; top: 82px; transform: translateX(-50%); white-space: nowrap; color: var(--ui-text); background: #0f1923ed; padding: 5px 7px; border: 1px solid var(--ui-line); font-size: 11px; }
+.shovel-cursor.valid span { border-color: var(--ui-mint); }
+.shovel-cursor.blocked img { opacity: .75; }
+@media (max-height: 500px) { .farm-tools { top: calc(146px + var(--safe-t)); flex-direction: row; gap: 6px; } .farm-tool { min-height: 54px; width: 52px; } .farm-tool img { width: 30px; height: 30px; } }
 @keyframes portrait-arrive { from { opacity: 0; transform: translateY(20px) rotate(-5deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
 @keyframes badge-arrive { from { opacity: 0; transform: translateY(-30px) scale(.45) rotate(-25deg); } to { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
 @keyframes reward-arrive { from { opacity: 0; transform: translateY(25px) scale(.7); } to { opacity: 1; transform: translateY(0) scale(1); } }

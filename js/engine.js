@@ -11,8 +11,8 @@
   const MAX_CRATES = 40;
   const START_CRATES = 1000; // テスト用の開始時所持数。自然回復の上限は40のまま。
   // アップグレードカード(本家): 収穫のときに、ときどき星 1 のカードが出る。星 1 を 3 枚で星 2、星 2 を 3 枚で星 3 に合体できる。
-  // 使うと、その作物・動物の「星のレベル」が上がり、収穫で出る食材が、星 1 つにつき 1 つ増える。
-  // 1 つの系統で出るカードは、星 3 のカード 1 枚ぶん(星 1 の 9 枚ぶん)まで。そろったら、もう出ない。
+  // 使うと、その作物・動物の「星のレベル」が上がり、収穫で出る食材が、星 1 つにつき 2 つ増える。
+  // ★3に強化するまでは、所持数・使用済み枚数にかかわらず収穫ごとに抽選する。
   // 収穫のあと: 作物・動物は 5 段階めの見た目になり、1 時間(REGROW_MS)は時計がついて収穫できない。1 時間たつと、もう一度収穫できる。
   // そのあとは枯れた見た目になり、タップすると、作物は 1 段階めの苗が 2 つ、動物は銅貨が 1 枚出る。
   // 待ち時間は、ジェムで飛ばせる(画像から: 52 分 52 秒で 53 個。1 分につき 1 個、切り上げ)。ジェムは、はじめに GEM_START 個(画像の数)。
@@ -26,7 +26,6 @@
   const WORKER_RENT_GEMS = 225;
   const CARD_DROP_RATE = 0.3;
   const CARD_UNITS = { 1: 1, 2: 3, 3: 9 };
-  const CARD_CAP = 9;
   // 収穫 1 回で出る食材の数(ユーザーから聞いた本家の数): 4 つ。星のレベル 1 つにつき 2 つ増える(ユーザーの指示)
   const HARVEST_BASE = 4, HARVEST_PER_STAR = 2;
   const LUCKY_RATE = 0.05;
@@ -448,7 +447,7 @@
       });
       emit('harvest', { c, r, item: before, spawned, remains: true });
       addXp(6);
-      if (stage === 0) maybeDropCard(it.k, c, r);
+      maybeDropCard(it.k, c, r);
       return { ok: true };
     }
     // 枯れたものをタップ: 作物は 1 段階めの苗が 2 つ、動物は銅貨が 1 枚出る
@@ -479,10 +478,9 @@
     // ---------- アップグレードカード ----------
     const cardOf = (k) => s.cards[k] || (s.cards[k] = { c1: 0, c2: 0, c3: 0, lv: 0, spent: 0 });
     const starsOf = (k) => (s.cards && s.cards[k] ? s.cards[k].lv : 0);
-    const cardUnits = (cd) => cd.c1 + 3 * cd.c2 + 9 * cd.c3 + cd.spent;
     function maybeDropCard(k, c, r) {
       const cd = cardOf(k);
-      if (cardUnits(cd) >= CARD_CAP || rng() >= CARD_DROP_RATE) return false;
+      if (cd.lv >= 3 || rng() >= CARD_DROP_RATE) return false;
       cd.c1 += 1;
       emit('card', { k, star: 1, c, r });
       return true;
@@ -551,6 +549,25 @@
       s.items[key(tc, tr)] = it;
       emit('move', { from: [fc, fr], to: [tc, tr], swapped: !!other });
       return { ok: true, merged: false };
+    }
+
+    // シャベルは盤面の品物だけを消す。建物・設備・撤去対象・作業進行を保護する。
+    function digInfo(c, r, id) {
+      if (coveredBy(c, r) || !isOwned(c, r)) return { ok: false, reason: 'protected' };
+      const it = getItem(c, r);
+      if (!it || it.id !== id) return { ok: false, reason: 'none' };
+      if (!((it.t === 'chain' && CHAINS[it.k]) || (it.t === 'ing' && INGREDIENTS[it.k])) ||
+          it.t === 'obs' || (it.k === 'toolbox' && it.pend) ||
+          s.jobs.some((j) => j.c === c && j.r === r && !j.rewardBubbleId)) return { ok: false, reason: 'protected' };
+      return { ok: true };
+    }
+    function digItem(c, r, id) {
+      const info = digInfo(c, r, id);
+      if (!info.ok) return info;
+      const item = { ...getItem(c, r) };
+      delete s.items[key(c, r)];
+      emit('itemDug', { c, r, item });
+      return { ok: true };
     }
 
     // ---------- 障害物の撤去 ----------
@@ -904,10 +921,10 @@
       get state() { return s; },
       newState, load, serialize, tick, drain,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree,
-      findGroup, stackGroup, mergeable, openCrate, cardOf, starsOf, useCard, mergeCards, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState,
+      findGroup, stackGroup, mergeable, openCrate, cardOf, starsOf, useCard, mergeCards, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
       startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, skipRegrow, chestInfo, openChest, claimRewardBubble,
       emitRaw: emit,
-      consts: { ENERGY_REGEN_MS, CRATE_REGEN_MS, CRATE_REGEN_AMOUNT, MAX_CRATES, CARD_CAP, FREE_FINISH_MS, HARVEST_BASE, HARVEST_PER_STAR, WORKER_RENT_GEMS, WORKER_RENT_MS },
+      consts: { ENERGY_REGEN_MS, CRATE_REGEN_MS, CRATE_REGEN_AMOUNT, MAX_CRATES, FREE_FINISH_MS, HARVEST_BASE, HARVEST_PER_STAR, WORKER_RENT_GEMS, WORKER_RENT_MS },
     };
   }
 

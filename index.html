@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0f1923">
 <title>ファームまじでValley</title>
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/tactical-ui.css?v=20261012-time-skip">
+<link rel="stylesheet" href="css/tactical-ui.css?v=20261012-shovel-cards">
 <link rel="icon" type="image/svg+xml" href="assets/ui/tactical/cargo.svg">
 </head>
 <body>
@@ -49,10 +49,16 @@
 <div id="regrow" class="regrow hidden">
   <div id="rg-title" class="rg-head">回復中</div>
   <div class="rg-time"><img src="assets/ref/tactical_clock.png" alt=""><b id="rg-time">0M 0S</b></div>
-  <button id="rg-skip" class="rg-skip"><img src="assets/ref/tactical_gem.png" alt="ダイヤ"><b id="rg-cost">0</b><span>即完了</span></button>
+  <button id="rg-skip" class="rg-skip"><img src="assets/ref/tactical_gem.png" alt="ジェム"><b id="rg-cost">0</b><span>即完了</span></button>
 </div>
 
 <button id="worker-chip" class="worker-btn" aria-label="作業者"><img src="assets/ref/tactical_hardhat.png" alt=""><span id="worker-text">0/1</span></button>
+
+<div id="farm-tools" class="farm-tools">
+  <button id="btn-cards" class="farm-tool" aria-label="強化カードを開く" aria-controls="cards"><img src="assets/ref/cards/tactical_frame_1.png" alt=""><span>強化</span><b id="cards-badge" class="tool-badge hidden">0</b></button>
+  <button id="shovel-btn" class="farm-tool" aria-label="シャベルをアイテムへドラッグして消す" title="アイテムへドラッグして消す"><img src="assets/ref/tactical_shovel.png" alt="シャベル" draggable="false"><span>シャベル</span></button>
+</div>
+<div id="shovel-cursor" class="shovel-cursor hidden" aria-hidden="true"><img src="assets/ref/tactical_shovel.png" alt="" draggable="false"><span>アイテムに重ねて離す</span></div>
 
 <div id="workers" class="workers hidden">
   <h2 id="wk-title">作業者が足りません!</h2>
@@ -106,11 +112,11 @@
   <div class="card">
     <div class="card-head">
       <img src="assets/ref/cards/tactical_frame_1.png" alt="">
-      <span>アップグレードカード</span>
+      <span>作物・動物の強化</span>
       <button id="cards-close" class="card-close" aria-label="閉じる">×</button>
     </div>
     <div class="card-body">
-      <p class="card-sub">収穫のときに、ときどきカードが出ます。使うと、その作物・動物の収穫が増えます</p>
+      <p class="card-sub">★3になるまで、収穫のたびにカードが出るチャンスがあります。カードを使うと収穫量が増えます</p>
       <div id="cards-list" class="cards-list"></div>
       <p class="card-note">星 1 を 3 枚で星 2、星 2 を 3 枚で星 3。星のカードは、1 つ上の星へとばして使うこともできます</p>
     </div>
@@ -134,10 +140,10 @@
 </div>
 
 <script src="js/layout.js"></script>
-<script src="js/data.js"></script>
-<script src="js/engine.js?v=20261012-time-skip"></script>
+<script src="js/data.js?v=20261012-shovel-cards"></script>
+<script src="js/engine.js?v=20261012-shovel-cards"></script>
 <script src="js/fx.js"></script>
-<script src="js/view.js?v=20261012-silent-materials"></script>
+<script src="js/view.js?v=20261012-shovel-cards"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
