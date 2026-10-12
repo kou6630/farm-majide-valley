@@ -272,9 +272,15 @@
     { id: 'logs', name: '木材', n: 1, stock: 2, currency: 'gems', price: 150, image: 'assets/ref/items/tactical_logs_3.png', item: { t: 'chain', k: 'logs', tier: 3 } },
   ];
   const MARKET_PACKS = [];
+  // 小パックは「まじバレー」の現行HUD素材そのもの。大パックは同じ素材から生成した派生絵。
+  const marketPackImage = name => ({
+    'cargo-small': 'assets/ui/tactical/cargo-illustrated.png',
+    'stamina-small': 'assets/ref/tactical_bolt.png',
+    'gems-small': 'assets/ref/tactical_gem.png',
+  })[name] || 'assets/ref/market/' + name + '-v2.png';
   const pack = (kind, amounts, prices, images) => amounts.forEach((n, i) => MARKET_PACKS.push({
     id: kind + '-' + n, kind, n, price: prices[i], currency: kind === 'gems' && i > 0 ? 'demo' : 'gems', free: i === 0,
-    image: 'assets/ref/market/' + images[i] + '.png', badge: i === 4 ? '人気' : i === 5 ? '大容量' : '',
+    image: marketPackImage(images[i]), badge: i === 4 ? '人気' : i === 5 ? '大容量' : '',
   }));
   pack('crates', [10,30,90,200,375,1000], [0,20,50,110,200,450], ['cargo-small','cargo-small','cargo-medium','cargo-medium','cargo-large','cargo-large']);
   pack('energy', [5,80,300,500,800,2000], [0,80,270,400,600,1200], ['stamina-small','stamina-small','stamina-medium','stamina-medium','stamina-large','stamina-large']);
