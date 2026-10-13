@@ -1264,7 +1264,6 @@
         case 'recipeStart': bsquash[ev.building] = performance.now(); refreshPanel(); break;
         case 'recipeReady':
           bsquash[ev.building] = performance.now();
-          toast(`${ev.recipe.name}ができた! コインの吹き出しをタップして受け取ろう`);
           refreshPanel();
           break;
         case 'recipeDone': {
