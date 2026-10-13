@@ -118,7 +118,7 @@
     const w = pic.naturalWidth * scale, h = pic.naturalHeight * scale;
     cx.drawImage(pic, (320 - w) / 2, 188 - h / 2, w, h);
     art.complete = true; art.naturalWidth = 320; art.naturalHeight = 448;
-    art.tight = true; art.exportScale = 2;
+    art.tight = true; art.exportScale = 4; // 盤面では40×56。隣の品物を隠さないよう従来の半分にする。
     return cardSprites[cacheKey] = art;
   }
 
