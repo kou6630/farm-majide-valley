@@ -65,7 +65,7 @@
     SHOP_KEYS.forEach((k) => n.push('ref/' + k, 'ref/' + k + '_broken'));
     ['lock', 'worker'].forEach((x) => n.push('ref/' + x));
     Object.values(BUILDINGS).forEach((bd) => bd.recipes.forEach((rc) => n.push('ref/products/' + rc.id)));
-    n.push('ref/cards/arrow', 'ref/cards/frame_1', 'ref/cards/frame_2', 'ref/cards/frame_3');
+    n.push('ref/cards/frame_1', 'ref/cards/frame_2', 'ref/cards/frame_3');
     Object.keys(CHAINS).forEach((k) => { if (CHAINS[k].type !== 'bonus') n.push('ref/cards/pic_' + k); });
     ['coin', 'gem', 'bolt', 'rank', 'lock', 'worker', 'clock'].forEach((x) => n.push('ui/tactical/' + x));
     return n;
@@ -343,6 +343,22 @@
       for (let i = 0; i < 8; i++) { const rr = i % 2 ? r * 0.28 : r; const a = (i / 8) * 6.283; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
       ctx.closePath(); ctx.fill(); ctx.restore();
     }
+    // 強化段階は五角の星を足元に重ねる。暗い縁で作物・地面の色から区別する。
+    function upgradeStars(x, y, level, alpha) {
+      ctx.save();
+      ctx.globalAlpha = alpha; ctx.fillStyle = '#ffd66b'; ctx.strokeStyle = '#6e481f'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+      for (let i = 0; i < level; i++) {
+        const cx = x + (i - (level - 1) / 2) * 21;
+        ctx.beginPath();
+        for (let p = 0; p < 10; p++) {
+          const radius = p % 2 ? 4.5 : 10, angle = -Math.PI / 2 + p * Math.PI / 5;
+          const px = cx + Math.cos(angle) * radius, py = y + Math.sin(angle) * radius;
+          if (p === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
     // 足元 (x, y) に品物の足元が来るように描く
     function drawSprite(im, x, y, size, o = {}) {
       if (!ready(im)) return;
@@ -376,28 +392,22 @@
       } else ctx.drawImage(art, -size / 2, -size * 0.9, size, size);
       ctx.restore();
     }
-    function shadow(x, y, size, lift = 0, alpha = 1) {
-      const s = 1 - Math.min(0.4, lift / 140);
+    function groundShadow(x, y, dm, alpha = 1) {
+      // 足元から横へ伸びる短い接地影。中央の楕円で浮いて見せない。
+      const w = dm.w, reach = Math.min(24, Math.max(5, dm.h * .18));
       ctx.save();
-      ctx.globalAlpha = 0.22 * alpha * s;
-      ctx.fillStyle = '#1d3a12';
-      ctx.beginPath(); ctx.ellipse(x, y - 1, size * 0.27 * s, size * 0.075 * s, 0, 0, 6.283); ctx.fill();
+      ctx.globalAlpha = .14 * alpha;
+      ctx.fillStyle = '#102326';
+      ctx.beginPath();
+      ctx.moveTo(x - w * .18, y);
+      ctx.lineTo(x + w * .18, y);
+      ctx.lineTo(x + w * .18 + reach, y - reach * .35);
+      ctx.lineTo(x + reach, y - reach * .55);
+      ctx.closePath(); ctx.fill();
       ctx.restore();
     }
 
     // ---------- 品物の描画 ----------
-    function idleOf(it, v, t) {
-      const ph = v.phase;
-      if (it.t === 'chain') {
-        const ch = CHAINS[it.k];
-        if (ch.type === 'animal') { const b = Math.sin(t * 2.2 + ph); return { sx: 1 - 0.018 * b, sy: 1 + 0.032 * b, rot: 0, oy: 0 }; }
-        if (ch.type === 'crop') return { sx: 1, sy: 1, rot: 0.03 * Math.sin(t * 1.6 + ph), oy: 0 };
-        if (it.k === 'energy') { const p = 1 + 0.045 * Math.sin(t * 3 + ph); return { sx: p, sy: p, rot: 0, oy: 0 }; }
-        return { sx: 1, sy: 1, rot: 0.02 * Math.sin(t * 2 + ph), oy: -3 * Math.sin(t * 2.4 + ph) };
-      }
-      if (it.t === 'ing') return { sx: 1, sy: 1, rot: 0, oy: -2 * Math.sin(t * 2 + ph) };
-      return { sx: 1, sy: 1, rot: 0, oy: 0 };
-    }
     // 絵の見た目の幅と高さ(影・光・吹き出し・つかむ範囲に使う)
     function dimsOf(it) {
       const im = spriteOf(it);
@@ -445,16 +455,14 @@
       const v = getVis(it.id);
       if (performance.now() < v.hideUntil) return;
       const [bx, by] = o.pos || tileFeet(c, r);
-      const idle = idleOf(it, v, t);
       const full = sizeOf(it), dm = dimsOf(it);
       const size = Math.max(dm.w, 56);
       const work = engine.state.jobs.find((j) => j.c === c && j.r === r);
-      let rot = v.rot + idle.rot;
+      const rot = v.rot;
       const phase = lifePhase(it), isMax = phase === 'ready';
-      const lift = (o.lift || 0) - v.oy;
-      shadow(bx + v.ox, by, size, lift, v.alpha);
+      if (!o.pos) groundShadow(bx + v.ox, by, dm, v.alpha);
       if (isMax) aura(bx + v.ox, by + v.oy, size, t + v.phase);
-      drawSprite(spriteOf(it), bx, by, full, { ox: v.ox, oy: v.oy + idle.oy + (o.liftY || 0), sx: v.sx * idle.sx * (o.scale || 1), sy: v.sy * idle.sy * (o.scale || 1), rot, alpha: v.alpha });
+      drawSprite(spriteOf(it), bx, by, full, { ox: v.ox, oy: v.oy + (o.liftY || 0), sx: v.sx * (o.scale || 1), sy: v.sy * (o.scale || 1), rot, alpha: v.alpha });
       if (isMax && !o.pos) harvestBubble(bx + v.ox, by + v.oy - Math.max(0, dm.h - 100), it, t);
       if ((it.t === 'obs' || it.k === 'toolbox') && it.pend && !o.pos) harvestBubble(bx + v.ox, by + v.oy - Math.max(0, dm.h - 100), it, t, imgs[`ref/items/${it.k === 'toolbox' ? 'tools' : OBSTACLES[it.k].res}_0`]);   // 作業が終わった: 素材の吹き出し
       if (phase === 'withered' && !o.pos) harvestBubble(bx + v.ox, by + v.oy - Math.max(0, dm.h - 100), it, t, imgs[CHAINS[it.k].type === 'crop' ? `ref/items/${it.k}_0` : 'ref/items/coin_0']);
@@ -462,9 +470,9 @@
         const ck = imgs['ui/clock'];
         if (ready(ck)) { const sc = 1 + 0.05 * Math.sin(t * 3 + v.phase); ctx.drawImage(ck, bx + v.ox - 24 * sc, by + v.oy - dm.h * 0.42 - 24 * sc, 48 * sc, 51 * sc); }
       }
-      if (it.t === 'chain' && CHAINS[it.k].type !== 'bonus' && !o.pos) {   // 全段階・回復中にも強化の矢印を表示
-        const lv = engine.starsOf(it.k), ar = imgs['ref/cards/arrow'];
-        if (lv > 0 && ready(ar)) { const byB = by + v.oy - Math.max(dm.h, 60) - (isMax ? 42 : 20); for (let i = 0; i < lv; i++) ctx.drawImage(ar, bx + v.ox - lv * 10 + i * 20, byB, 18, 24); }
+      if ((phase === 'ready' || phase === 'regrow') && !o.pos) {   // 成熟・収穫後だけ、絵の下端に強化の星を重ねる。
+        const lv = engine.starsOf(it.k);
+        if (lv > 0) upgradeStars(bx + v.ox, by + v.oy - 6, lv, v.alpha);
       }
       if (it.t === 'chain' && CHAINS[it.k].type === 'bonus' && it.tier >= 2) {
         const k = (t * 1.1 + v.phase) % 2;

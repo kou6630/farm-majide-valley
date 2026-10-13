@@ -182,8 +182,7 @@ button:disabled { cursor: default; }
 .crate-btn::before { content: ''; position: absolute; inset: 13px 0 0; background: linear-gradient(145deg,#637f8e,#233e50 45%,#142b3b); clip-path: polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px); border: 2px solid #b7e1df; border-bottom: 5px solid #071a2d; filter: drop-shadow(0 5px 3px #00111f88); }
 .crate-btn::after { display: block; content: ''; position: absolute; inset: 13px 0 0; width: auto; height: auto; left: 0; top: 13px; border-radius: 0; clip-path: var(--ui-cut); pointer-events: none; background: linear-gradient(110deg,transparent 35%,#daf9ff44 47%,transparent 58%); background-size: 260% 100%; background-position: 160% 0; }
 .crate-btn.ready:not(.empty)::after { animation: cargo-sheen 4.5s ease-in-out infinite; }
-.crate-btn .crate-art { position: absolute; width: 92px; height: 106px; left: calc(50% - 46px); top: -25px; margin: 0; object-fit: contain; filter: drop-shadow(0 6px 3px #031a2c88); transform-origin: 50% 75%; }
-.crate-btn.ready .crate-art { animation: cargo-float 2.7s ease-in-out infinite; }
+.crate-btn .crate-art { position: absolute; width: 92px; height: 106px; left: calc(50% - 46px); top: -25px; margin: 0; object-fit: contain; filter: drop-shadow(0 2px 1px #031a2c66); transform-origin: 50% 75%; }
 .crate-btn .crate-action { position: absolute; bottom: 5px; left: 0; right: 0; color: #e5f7f6; text-shadow: 0 1px 2px #061523; font-size: 11px; letter-spacing: .5px; }
 .crate-btn.squash, .crate-btn.ready:not(.empty).squash { animation: cargo-button-pop .48s cubic-bezier(.2,.8,.4,1); }
 .crate-btn.squash .crate-art { animation: cargo-release .48s cubic-bezier(.2,.8,.4,1); }
@@ -231,7 +230,6 @@ button:disabled { cursor: default; }
 .lu-tile:nth-child(4) { animation-delay: .3s; }
 .lu-pic, .lu-nm { background: transparent; }
 .lu-pic img.p { filter: drop-shadow(0 4px 2px #091b2e88); }
-@keyframes cargo-float { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-6px) rotate(2deg); } }
 @keyframes cargo-sheen { 0%,60% { background-position: 160% 0; opacity: 0; } 68% { opacity: 1; } 85%,100% { background-position: -70% 0; opacity: 0; } }
 @keyframes cargo-button-pop { 0%,100% { transform: scale(1); } 20% { transform: translateY(3px) scale(1.07,.9); } 55% { transform: translateY(-3px) scale(.96,1.08); } }
 @keyframes cargo-release { 0%,100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(5px) rotate(-9deg) scale(.92); } 60% { transform: translateY(-14px) rotate(6deg) scale(1.08); } }

@@ -24,7 +24,7 @@
   // 借りるジェムの数は、いつでも同じ(ユーザーに聞いた)。本家の画面の数: 225
   const WORKER_RENT_MS = 14 * 24 * 3600 * 1000;
   const WORKER_RENT_GEMS = 225;
-  const CARD_DROP_RATE = 0.3;
+  const CARD_DROP_RATE = 0.06; // ユーザー指定: 50回の収穫で平均3枚。
   const CARD_UNITS = { 1: 1, 2: 3, 3: 9 };
   // 収穫 1 回で出る食材の数(ユーザーから聞いた本家の数): 4 つ。星のレベル 1 つにつき 2 つ増える(ユーザーの指示)
   const HARVEST_BASE = 4, HARVEST_PER_STAR = 2;
