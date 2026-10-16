@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1923">
+<title>K/AYO牧場</title>
+<script src="js/device-profile.js?v=20261017-quality"></script>
+<link rel="stylesheet" href="css/style.css?v=20261016-sort-tier">
+<link rel="stylesheet" href="css/tactical-ui.css?v=20261016-sort-tier">
+<link rel="stylesheet" href="css/account.css?v=20261017-quality">
+<link rel="stylesheet" href="css/visits.css?v=20261016-collect-fx">
+<link rel="stylesheet" href="css/weekly-race.css?v=20261016-free-race">
+<link rel="icon" type="image/svg+xml" href="assets/ui/tactical/cargo.svg">
+</head>
+<body>
+<section id="ranch-gate" class="ranch-gate" aria-labelledby="ranch-title">
+  <div class="ranch-gate-card">
+    <h1 id="ranch-title">K/AYO牧場</h1>
+    <p id="ranch-message" role="status">ログインの準備中…</p>
+    <div id="ranch-progress-box" class="ranch-progress-box">
+      <progress id="ranch-progress" max="100" aria-label="牧場の読み込み進行状況"></progress>
+      <p id="ranch-progress-detail">Googleログインの準備</p>
+    </div>
+    <p>PC・スマホで同じ牧場を遊べます。端末を切り替える前に、保存が完了したことを確認してください。</p>
+    <button id="ranch-login" hidden>Googleでログイン</button>
+    <button id="ranch-reload" hidden>再読み込み</button>
+    <button id="ranch-gate-logout" hidden>ログアウト</button>
+    <button id="ranch-gate-save" hidden>保存を再試行</button>
+    <button id="ranch-force-logout" hidden>未保存の進捗を残してログアウト</button>
+  </div>
+</section>
+<dialog id="ranch-menu" class="ranch-menu" aria-labelledby="ranch-menu-title">
+  <div class="ranch-menu-heading"><h2 id="ranch-menu-title">メニュー</h2><button id="ranch-menu-close" aria-label="メニューを閉じる">×</button></div>
+  <strong id="ranch-account"></strong>
+  <p id="ranch-status" role="status"></p>
+  <label class="ranch-quality"><input id="ranch-low-quality" type="checkbox" aria-describedby="ranch-quality-note">低画質モード</label>
+  <p id="ranch-quality-note" class="ranch-save-note">描画を軽くします。動画を見ながら遊ぶときにおすすめです。この端末に設定を保存します。</p>
+  <p class="ranch-save-note">変更があるときだけ、5分ごとに自動保存します。端末を切り替える前に「保存して終了」を押してください。</p>
+  <button id="ranch-save-exit">保存して終了</button>
+  <button id="ranch-retry" hidden>保存を再試行</button>
+  <button id="ranch-logout" class="ranch-logout">ログアウト</button>
+</dialog>
+<dialog id="action-confirm" class="action-confirm" aria-labelledby="action-confirm-title" aria-describedby="action-confirm-copy">
+  <h2 id="action-confirm-title">確認</h2>
+  <p id="action-confirm-copy"></p>
+  <label class="action-confirm-day"><input id="action-confirm-skip" type="checkbox">今日は表示しない</label>
+  <div class="action-confirm-buttons"><button id="action-confirm-cancel" autofocus>キャンセル</button><button id="action-confirm-ok">実行する</button></div>
+</dialog>
+<dialog id="sort-confirm" class="action-confirm" aria-labelledby="sort-title" aria-describedby="sort-copy">
+  <h2 id="sort-title">整列</h2>
+  <p id="sort-copy"></p>
+  <p class="sort-note">収穫できるものとクールダウン中のものは動かしません。</p>
+  <div class="action-confirm-buttons"><button id="sort-no" autofocus>いいえ</button><button id="sort-yes"><span>はい</span><span id="sort-cost" class="sort-cost" hidden><img data-ranch-src="assets/ref/tactical_gem.png" alt="ジェム"><b id="sort-cost-num">×30</b></span></button></div>
+</dialog>
+<dialog id="weekly-race-dialog" class="weekly-race-dialog" aria-labelledby="weekly-race-title">
+ <button id="weekly-race-close" aria-label="ころころレースを閉じる">×</button>
+ <div id="weekly-race-panel"><small class="race-eyebrow">K/AYO RANCH · WEEKEND RACE</small><h2 id="weekly-race-title">ころころレース</h2><p id="weekly-race-copy"></p><strong id="weekly-race-deadline">日曜日を過ぎると報酬は受け取れません</strong><small id="weekly-race-dialog-time"></small><div id="weekly-race-rewards"></div><button id="weekly-race-action">エントリーする</button><p id="weekly-race-error" role="status"></p><ol id="weekly-race-ranks" aria-label="最終順位"></ol></div>
+</dialog>
+<dialog id="travel-picker" class="travel-dialog" aria-labelledby="travel-title">
+  <header><div><h2 id="travel-title">飛行場</h2><p id="travel-count">チケット 0 / 3</p></div><button id="travel-close" aria-label="閉じる">×</button></header>
+  <p class="travel-hint">出発するとチケットを1枚使います。同じ人への訪問は30分ごと。</p>
+  <p id="travel-empty">訪問先を読み込み中…</p><div id="travel-people"></div><button id="travel-more" hidden>もっと見る</button>
+</dialog>
+<dialog id="visit-gift" class="travel-dialog visit-gift" aria-labelledby="visit-gift-title">
+  <h2 id="visit-gift-title"></h2><div id="visit-gift-items"></div><button id="visit-gift-collect">回収</button><button id="visit-gift-later">あとで</button>
+</dialog>
+<main id="ranch-play" inert>
+<div id="visit-bar" hidden><div><strong id="visit-name"></strong><img id="visit-bonus" data-ranch-src="assets/visits/bonus.png" alt="×2" hidden><div id="visit-rewards"></div></div><button id="visit-home">自分の牧場へ帰る</button></div>
+<button id="airport-focus" aria-label="飛行場へ移動"><img data-ranch-src="assets/visits/ticket.png" alt=""><span>飛行場 <b id="flight-ticket-count">0</b>/3</span></button>
+<canvas id="stage"></canvas>
+<div id="gather-meter" class="gather-meter hidden" aria-hidden="true"><svg viewBox="0 0 64 64"><circle class="gather-track" cx="32" cy="32" r="27"/><circle id="gather-ring" cx="32" cy="32" r="27" pathLength="100"/></svg></div>
+
+<div id="hud">
+  <div class="hud-left">
+    <div id="medal" class="medal">
+      <img class="medal-art" data-ranch-src="assets/ui/tactical/medal-illustrated.png" alt="">
+      <div class="medal-copy"><span class="medal-label">LV</span><span id="level-num">1</span></div>
+    </div>
+    <div class="xp-wrap">
+      <div class="xp-bar"><div id="xp-fill" class="xp-fill"></div></div>
+      <div id="xp-text" class="xp-text">0/0</div>
+    </div>
+  </div>
+  <div class="hud-right">
+    <div class="hud-row">
+      <div id="coin-pill" class="pill">
+        <img data-ranch-src="assets/ref/tactical_coin.png" alt="コイン">
+        <span id="coin-num">0</span>
+      </div>
+      <div id="gem-pill" class="pill">
+        <img data-ranch-src="assets/ref/tactical_gem.png" alt="ジェム">
+        <span id="gem-num">0</span><button id="gem-add" class="resource-add" aria-label="ジェムの市場を開く">＋</button>
+      </div>
+      <div id="visit-crate-pill" class="pill">
+        <img data-ranch-src="assets/ref/items/tactical_woodbox_0.png" alt="箱">
+        <span id="visit-crate-num">0</span>
+      </div>
+    </div>
+    <div class="hud-row hud-supplies">
+    <div id="cookie-pill" class="pill small" title="トラッカーと共通のクッキー。保存時に残高へ反映します。">
+      <img data-ranch-src="assets/ref/items/cookie_0.png" alt="クッキー"><span id="cookie-num">—</span>
+    </div>
+    <div id="energy-pill" class="pill small">
+      <img data-ranch-src="assets/ref/tactical_bolt.png" alt="エネルギー">
+      <span id="energy-num">50</span><small>/50</small>
+      <em id="energy-timer"></em><button id="energy-add" class="resource-add" aria-label="スタミナの市場を開く">＋</button>
+    </div>
+    </div>
+  </div>
+</div>
+
+<div id="side">
+  <button id="ranch-menu-toggle" class="ranch-menu-toggle" aria-haspopup="dialog" aria-controls="ranch-menu" hidden>メニュー</button>
+</div>
+
+<div id="regrow" class="regrow hidden">
+  <div id="rg-title" class="rg-head">回復中</div>
+  <p id="rg-growth" class="rg-growth hidden"></p>
+  <div class="rg-time"><img data-ranch-src="assets/ref/tactical_clock.png" alt=""><b id="rg-time">0M 0S</b></div>
+  <button id="rg-skip" class="rg-skip"><img id="rg-gem" data-ranch-src="assets/ref/tactical_gem.png" alt="ジェム"><b id="rg-cost">0</b><span id="rg-label">即完了</span></button>
+</div>
+
+<button id="worker-chip" class="worker-btn" aria-label="作業者"><img data-ranch-src="assets/ref/tactical_hardhat.png" alt=""><span id="worker-text">0/1</span></button>
+
+<div id="farm-tools" class="farm-tools">
+  <button id="btn-market" class="farm-tool" aria-label="市場を開く" aria-controls="market"><img data-ranch-src="assets/ref/market/market.png" alt=""><span>市場</span><b id="market-badge" class="tool-badge">!</b></button>
+  <button id="shovel-btn" class="farm-tool" aria-label="シャベルをアイテムへドラッグして消す" title="アイテムへドラッグして消す"><img data-ranch-src="assets/ref/tactical_shovel.png" alt="シャベル" draggable="false"><span>シャベル</span></button>
+  <button id="sort-btn" class="farm-tool" aria-label="整列"><img data-ranch-src="assets/ui/tactical/sort.png" alt="" draggable="false"><span>整列</span><b id="sort-badge" class="tool-badge">無料</b></button>
+  <div id="weekly-race-tool" hidden><button id="weekly-race-button" class="farm-tool" aria-haspopup="dialog" aria-controls="weekly-race-dialog"><span class="race-marbles" aria-hidden="true"><i></i><i></i><i></i></span><span id="weekly-race-label">ころころレースエントリー</span><b id="weekly-race-attention" class="tool-badge" hidden>!</b></button><small id="weekly-race-time"></small></div>
+</div>
+<div id="shovel-cursor" class="shovel-cursor hidden" aria-hidden="true"><img data-ranch-src="assets/ref/tactical_shovel.png" alt="" draggable="false"><span>アイテムに重ねて離す</span></div>
+
+<div id="workers" class="workers hidden">
+  <h2 id="wk-title">作業者が足りません!</h2>
+  <div class="wk-face"><img data-ranch-src="assets/ref/tactical_foreman.png" alt=""></div>
+  <div class="wk-count" id="wk-count">0/1</div>
+  <p class="wk-msg">14日間、作業者をもう1人借りよう!</p>
+  <button id="wk-rent" class="wk-price"><img data-ranch-src="assets/ref/tactical_gem.png" alt=""><b id="wk-gems">225</b></button>
+  <button id="wk-close" class="wk-later">今はやめる</button>
+  <p class="wk-note" id="wk-note"></p>
+</div>
+
+<div id="tutor" class="tutor">
+  <div class="tutor-bubble"><span id="tutor-text"></span></div>
+  <img class="tutor-face" data-ranch-src="assets/ref/tactical_francine.png" alt="">
+</div>
+
+<div id="bottom">
+  <div class="crate-wrap">
+    <button id="crate-btn" class="crate-btn" aria-label="箱を開ける" title="3秒長押しで、手持ちの箱を空きマス分まとめて開く">
+      <img class="crate-art" data-ranch-src="assets/ui/tactical/cargo-illustrated.png" alt="" draggable="false">
+      <span class="crate-action">箱を開ける</span>
+    </button>
+    <div class="crate-label"><b id="crate-count">0/40</b><span id="crate-regen" class="crate-regen"><i>+5 :</i><em id="crate-timer"></em></span></div>
+    <img id="hand" class="hand" data-ranch-src="assets/ref/tactical_hand.png" alt="">
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div id="chest" class="chest-popup hidden" role="dialog" aria-labelledby="chest-title">
+  <button id="chest-close" class="chest-close" aria-label="閉じる">×</button>
+  <div id="chest-title" class="chest-title">宝箱</div>
+  <div class="chest-time"><img data-ranch-src="assets/ref/tactical_clock.png" alt="残り時間"><b id="chest-time"></b></div>
+  <div class="chest-key"><img id="chest-key" data-ranch-src="assets/ref/items/tactical_keys_0.png" alt="カギ"><b id="chest-count">0/2</b></div>
+  <button id="chest-open" class="chest-open">開ける</button>
+</div>
+
+<div id="panel" class="overlay hidden">
+  <div class="card ord-card">
+    <div class="ord-head">
+      <img class="ord-ico" data-ranch-src="assets/ref/tactical_orders.png" alt="">
+      <span id="ord-title">オーダー</span>
+      <button id="panel-close" class="card-close" aria-label="閉じる">×</button>
+    </div>
+    <div id="ord-tabs" class="ord-tabs"><button id="tab-order" class="on">オーダー</button><button id="tab-stock">素材</button></div>
+    <div id="panel-body" class="ord-body"></div>
+  </div>
+</div>
+
+<div id="card-popover" class="card-popover hidden" role="dialog" aria-label="盤面アイテムの情報">
+  <button id="card-close" aria-label="情報を閉じる">×</button>
+  <h2 id="card-title"></h2><p id="card-status"></p><p id="card-effect"></p>
+  <button id="card-use">強化する</button><p id="card-help"></p>
+</div>
+
+<div id="levelup" class="levelup hidden">
+  <div class="lu-medal"><img class="medal-art" data-ranch-src="assets/ui/tactical/medal-illustrated.png" alt=""><b id="lu-level">2</b></div>
+  <h2>レベルアップ!</h2>
+  <p id="lu-sub" class="lu-sub">報酬</p>
+  <div id="lu-list" class="lu-list"></div>
+  <p class="lu-tap">タップして続ける</p>
+</div>
+
+<div id="market" class="market-overlay hidden">
+  <div id="market-dialog" class="market-dialog" role="dialog" aria-modal="true" aria-labelledby="market-title">
+    <header class="market-header"><div><small>VALLEY / SUPPLY STATION</small><h1 id="market-title">市場</h1></div><button id="market-close" aria-label="市場を閉じる">×</button></header>
+    <div class="market-wallet"><span>KP <b id="market-kp-balance">確認中</b></span><span><img data-ranch-src="assets/ref/tactical_coin.png" alt="コイン"><b id="market-coin-balance">0</b></span><span><img data-ranch-src="assets/ref/tactical_gem.png" alt="ジェム"><b id="market-gem-balance">0</b></span></div>
+    <nav id="market-tabs" aria-label="市場の商品カテゴリ"><button data-section="deals">特売</button><button data-section="crates">物資箱</button><button data-section="energy">スタミナ</button><button data-section="gems">ジェム</button></nav>
+    <div id="market-scroll" class="market-scroll"><div id="market-content"></div></div>
+    <p id="market-message" class="market-message hidden" role="status"></p>
+    <footer class="market-footer">無料パックは24時間ごとに受け取り可能</footer>
+    <div id="market-confirm" class="market-confirm hidden" role="alertdialog" aria-modal="true" aria-labelledby="market-confirm-title" aria-describedby="market-confirm-copy"><div><h2 id="market-confirm-title"></h2><p id="market-confirm-copy"></p><button id="market-confirm-ok"></button><button id="market-confirm-cancel">キャンセル</button></div></div>
+  </div>
+</div>
+
+<div id="loading" class="loading">
+  <div class="loading-brand"><span>FARM</span><strong>まじでValley</strong><i>MERGE &amp; BUILD</i></div>
+  <div class="loading-box">
+    <div class="loading-bar"><div id="loading-fill"></div></div>
+    <div id="loading-text">読み込み中…</div>
+  </div>
+</div>
+
+</main>
+<script src="ranch-state.js?v=20261016-cookies"></script>
+<script src="ranch-cloud.js?v=20261016-cookies"></script>
+<script src="ranch-login.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/data.js?v=20261017-gold-chest"></script>
+<script src="js/engine.js?v=20261017-quality"></script>
+<script src="visits-state.js?v=20261015-visits"></script>
+<script src="visits-cloud.js?v=20261015-visits"></script>
+<script src="visits-ui.js?v=20261016-collect-fx"></script>
+<script src="weekly-race-state.js?v=20261016-free-race"></script>
+<script src="weekly-race-cloud.js?v=20261016-free-race"></script>
+<script src="weekly-race-ui.js?v=20261016-free-race"></script>
+<script src="js/fx.js"></script>
+<script src="js/view.js?v=20261017-quality"></script>
+<script src="js/market.js?v=20261015-mobile"></script>
+<script src="ranch-browser.js?v=20261016-free-race"></script>
+<script type="module">
+  import('./ranch-auth.js?v=20261016-free-race').catch(()=>window.kayoRanchBrowser.fail({code:'auth-init-failed'}));
+</script>
+</body>
+</html>
+

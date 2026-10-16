@@ -1,0 +1,42 @@
+.travel-dialog { width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 40px);padding:20px;border:1px solid #91afb8;border-top:3px solid #ff6873;background:#172936;color:#eef7f4;font-family:var(--font);box-sizing:border-box; }
+.travel-dialog::backdrop {background:#08131ccc;}
+.travel-dialog header {display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.travel-dialog h2 {margin:0;font-size:23px;overflow-wrap:anywhere;}
+.travel-dialog p {line-height:1.6;font-size:13px;}
+.travel-dialog button,#visit-home {min-height:44px;cursor:pointer;border:1px solid #91afb8;background:#203341;color:#eef7f4;padding:8px 14px;font:700 14px var(--font);}
+.travel-dialog button:disabled {opacity:.5;cursor:default;}
+.travel-dialog button:focus-visible,#visit-bar button:focus-visible,#airport-focus:focus-visible {outline:2px solid #a7f8df;outline-offset:2px;}
+#travel-people {max-height:55dvh;overflow-y:auto;overscroll-behavior:contain;padding:3px;}
+.travel-person {position:relative;padding:16px;margin-bottom:12px;background:#233b49;border:1px solid #557681;}
+.travel-person h3 {margin:0;padding-right:52px;font-size:17px;overflow-wrap:anywhere;}
+.travel-person p {margin:5px 0 10px;color:#bbd2d6;}
+.travel-person>button {width:100%;margin-top:12px;background:#c44961;border-color:#ff9aab;}
+.travel-bonus {position:absolute;right:5px;top:5px;width:58px;height:58px;object-fit:contain;}
+.travel-reward-list,#visit-gift-items,#visit-rewards {display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+.travel-reward-list span,#visit-gift-items span,#visit-rewards span {display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:16px;}
+.travel-reward-list img,#visit-gift-items img,#visit-rewards img {width:32px;height:32px;object-fit:contain;}
+.visit-gift {text-align:center;}
+.visit-gift h2 {font-size:20px;line-height:1.5;}
+#visit-gift-items {justify-content:center;padding:24px 0;}
+#visit-gift-collect {background:#c44961;border-color:#ff9aab;min-width:140px;}
+#visit-gift-later {margin-left:8px;}
+#travel-more {width:100%;margin-top:10px;}
+#airport-focus {position:fixed;z-index:6;left:12px;bottom:calc(24px + var(--safe-b));min-width:74px;min-height:64px;display:grid;justify-items:center;border:1px solid #91afb8;background:#172936e8;color:#eef7f4;font:700 12px var(--font);padding:4px 8px;cursor:pointer;}
+#airport-focus img {width:48px;height:34px;object-fit:contain;}
+#visit-bar {position:fixed;z-index:12;left:50%;top:calc(110px + var(--safe-t));transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:10px 14px;background:#102331ed;border:1px solid #91afb8;width:min(520px,calc(100vw - 24px));color:#eef7f4;}
+#visit-bar>div {flex:1;min-width:0;}
+#visit-bar[hidden] {display:none;}
+#visit-name {font-size:15px;overflow-wrap:anywhere;}
+#visit-bonus {width:38px;height:38px;vertical-align:middle;object-fit:contain;}
+#visit-rewards {gap:8px;margin-top:5px;}
+#visit-rewards button {background:transparent;border:0;color:inherit;padding:0;cursor:pointer;min-width:44px;min-height:44px;}
+#visit-rewards img {width:24px;height:24px;}
+.visit-taken {opacity:.35;}
+#visit-home {font-size:12px;white-space:nowrap;flex-shrink:0;}
+.visiting #side,.visiting .farm-tools,.visiting #worker-chip,.visiting #bottom,.visiting #tutorial,.visiting #workers {display:none!important;}
+.visiting .resource-add {display:none!important;}
+#visit-crate-pill {display:none;}
+.visiting #visit-crate-pill {display:flex;}
+.visiting #gem-pill {display:none;}
+#airport-focus.bump {animation:bump .28s ease;}
+@media(max-width:480px){.travel-dialog{padding:14px;}#visit-bar{top:calc(124px + var(--safe-t));gap:8px;padding:8px;}#visit-name{font-size:13px;}#visit-rewards span{font-size:13px;gap:2px;}#visit-rewards{gap:3px;}#visit-home{padding:8px;}#airport-focus{bottom:calc(18px + var(--safe-b));}}
