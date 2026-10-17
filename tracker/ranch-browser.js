@@ -1,6 +1,7 @@
 (() => {
   const rules=window.kayoRanchState, $=id=>document.getElementById(id);
   const prefix='buriburi_ranch_pending_v1:';
+  const recoveryPrefix='buriburi_ranch_recovery_v1:';
   const purchasePrefix='buriburi_ranch_purchase_v1:';
   const travelPrefix='buriburi_ranch_travel_v1:',activeTripPrefix='buriburi_ranch_active_trip_v1:';
   const racePrefix='buriburi_ranch_race_claim_v1:';
@@ -53,7 +54,7 @@
   }
   function current(session){return active===session && session.generation===generation;}
   function persist(session){
-    if(!session.pending)return;
+    if(session.ended || !session.pending)return;
     try {localStorage.setItem(prefix+session.uid,JSON.stringify({payload:session.pending,latest:session.latest,attempted:session.attempted}));}
     catch {status('保存待ち（このブラウザに一時保存できません）');}
   }
@@ -182,7 +183,11 @@
         loading('未保存の進捗を復旧中…','2 / 3　この端末の保存待ちデータを確認');
         const snapshot=rules.normalizeSnapshot(cached.payload.stateJson),latest=rules.normalizeSnapshot(cached.latest);
         if(!snapshot || !latest)throw Object.assign(Error('牧場の未保存データを確認できませんでした。保存済みの進捗を読み直してください。'),{code:'ranch-invalid-pending'});
-        if(cached.payload.saveId===result.saveId && snapshot===result.stateJson){
+        if(rules.progressKey(latest)===session.savedKey){
+          // The cloud already contains the latest local progress, including
+          // saves whose acknowledgement was lost before another operation.
+          try{localStorage.removeItem(prefix+user.uid);}catch{}
+        }else if(cached.payload.saveId===result.saveId && snapshot===result.stateJson){
           try{localStorage.removeItem(prefix+user.uid);}catch{}
           if(rules.progressKey(latest)!==session.savedKey)queue(session,latest);
         }else{session.pending={...cached.payload,stateJson:snapshot};session.attempted=cached.attempted!==false;queue(session,latest);}
@@ -372,8 +377,27 @@
     $('ranch-force-logout').onclick=()=>void services.logout().catch(error=>gate(message(error),true));
     $('ranch-retry').onclick=()=>{if(active){capture(active);void flush(active);}};
     $('ranch-reload').onclick=()=>{
-      if(active?.conflict && !confirm('この画面の未保存の進捗を破棄し、クラウドの進捗を読み直しますか？'))return;
-      if(active?.conflict){try{localStorage.removeItem(prefix+active.uid);}catch{}}
+      const session=active;
+      if(session?.conflict){
+        if(session.ended)return;
+        if(!confirm('この端末の未保存データを退避し、クラウドの保存済み進捗から再開しますか？'))return;
+        try{
+          const record=localStorage.getItem(prefix+session.uid) || (session.pending?JSON.stringify({payload:session.pending,latest:session.latest,attempted:session.attempted}):null);
+          if(record){
+            const backup={schemaVersion:1,createdAt:new Date().toISOString(),reason:'ranch-conflict',cloudVersion:session.version,record};
+            localStorage.setItem(recoveryPrefix+session.uid+':'+crypto.randomUUID(),JSON.stringify(backup));
+          }
+          localStorage.removeItem(prefix+session.uid);
+        }catch{
+          gate('端末の未保存データを退避できませんでした。データを保護するため、再読み込みを中止しました。',true);
+          return;
+        }
+        // pagehide/visibilitychange also persist progress. End this session
+        // before navigating so they cannot recreate the stale pending record.
+        session.ended=true;session.pending=null;generation++;
+        session.unsubscribe?.();
+        for(const timer of session.timers)clearInterval(timer);
+      }
       location.reload();
     };
     services.observe(user=>void changed(user));
