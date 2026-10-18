@@ -7,19 +7,21 @@
   const lucky=()=>root.FMV.luckyEventAt(now());
   function paintLuckyDialog(){
    const event=lucky();
-   $('weekly-race-eyebrow').textContent='K/AYO RANCH · MONDAY LUCKY';
-   $('weekly-race-title').textContent=event.active?'ラッキー発生率 ×2':'ラッキー2倍は終了しました';
-   $('weekly-race-copy').textContent='合成時にアイテムが1個増えるラッキーの発生率が、通常5%から10%になります。5個合成でラッキーが出ると3個完成します。';
-   $('weekly-race-deadline').textContent='毎週月曜日（日本時間）9:00〜9:30 ／ 19:00〜19:30 ／ 23:30〜23:59';
-   $('weekly-race-dialog-time').textContent=event.active?W.remaining(event.endsAt,now()):'現在は通常の発生率です';
+   dialog.dataset.event='lucky';
+   $('weekly-race-eyebrow').hidden=true;
+   $('weekly-race-title').textContent=event.active?'ラッキー発生率2倍':'ラッキー発生率2倍は終了しました';
+   $('weekly-race-copy').textContent='';$('weekly-race-copy').hidden=true;
+   $('weekly-race-deadline').textContent='月曜日\n9:00〜9:30\n19:00〜19:30\n23:30〜23:59';
+   $('weekly-race-dialog-time').hidden=true;
    $('weekly-race-action').hidden=true;
   }
   function paint(){
    if(!isCurrent()||stopped)return;
    const n=W.notice(state,now()),period=W.period(now()),event=lucky(),tool=$('weekly-race-tool');
    tool.hidden=period.phase==='closed'&&!event.active;tool.dataset.event=event.active?'lucky':'race';
+   $('weekly-lucky-icon').hidden=!event.active;$('weekly-race-marbles').hidden=event.active;
    if(event.active){
-    $('weekly-race-label').textContent='ラッキー発生率\n×2';$('weekly-race-attention').hidden=true;
+    $('weekly-race-label').textContent='ラッキー発生率\n2倍';$('weekly-race-attention').hidden=true;
     $('weekly-race-time').textContent=W.remaining(event.endsAt,now());
    }else if(period.phase!=='closed'){
     $('weekly-race-label').textContent=period.phase==='entry'?'ころころレース\nエントリー':'ころころレース\n結果';
@@ -52,6 +54,8 @@
   function show(){
    if(!isCurrent()||stopped)return;
    if(dialogMode==='lucky'){$('weekly-race-rewards').replaceChildren();$('weekly-race-ranks').replaceChildren();paintLuckyDialog();return;}
+   dialog.dataset.event='race';
+   $('weekly-race-eyebrow').hidden=false;$('weekly-race-copy').hidden=false;$('weekly-race-dialog-time').hidden=false;
    $('weekly-race-eyebrow').textContent='K/AYO RANCH · WEEKEND RACE';
    if(seen&&result){showResults();return;}
    const p=W.period(now());$('weekly-race-rewards').replaceChildren();$('weekly-race-ranks').replaceChildren();$('weekly-race-title').textContent='ころころレース';$('weekly-race-action').hidden=false;$('weekly-race-action').disabled=busy;

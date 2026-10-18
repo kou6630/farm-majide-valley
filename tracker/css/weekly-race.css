@@ -2,3 +2,5 @@
 #weekly-race-label{white-space:pre-line;font-size:9.5px;letter-spacing:-.4px}
 
 #weekly-race-tool[data-event="lucky"] #weekly-race-button{border-color:#e4c786;color:#ffe4a7;background:#263b3d}#weekly-race-tool[data-event="lucky"] .race-marbles i{--marble:#f0cb77}#weekly-race-dialog[data-playing="false"] #weekly-race-action[hidden],#weekly-race-action[hidden]{display:none}
+
+#weekly-lucky-icon{width:44px;height:44px;object-fit:contain}#weekly-lucky-icon[hidden],#weekly-race-marbles[hidden]{display:none}.weekly-race-dialog[data-event="lucky"] .race-eyebrow,.weekly-race-dialog[data-event="lucky"] #weekly-race-copy,.weekly-race-dialog[data-event="lucky"] #weekly-race-dialog-time{display:none}.weekly-race-dialog[data-event="lucky"] #weekly-race-deadline{white-space:pre-line;line-height:1.9;color:#e4c786;background:transparent;padding:0;margin:0}.weekly-race-dialog[data-event="lucky"] h2{margin-bottom:20px}@media(max-height:500px){#weekly-lucky-icon{width:30px;height:30px}}
