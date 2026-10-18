@@ -11,11 +11,11 @@
         tx.set(dirRef(uid),{...V.directory(uid,profile.nickname,s.data().ranchStateJson),updatedAt:sdk.serverTimestamp()});});
     }
     async function list(uid,cursor=null){
-      const constraints=[sdk.orderBy(sdk.documentId()),sdk.limit(30)];if(cursor)constraints.push(sdk.startAfter(cursor));
+      const constraints=[sdk.orderBy('updatedAt','desc'),sdk.limit(30)];if(cursor)constraints.push(sdk.startAfter(cursor));
       const page=await sdk.getDocs(sdk.query(sdk.collection(db,'googleRanchDirectory'),...constraints));
       const routes=await sdk.getDocs(sdk.collection(db,'googleRanchRoutes',uid,'targets'));
       const history=new Map(routes.docs.map(d=>[d.id,d.data()]));
-      return {rows:page.docs.filter(d=>d.id!==uid).map(d=>({...d.data(),route:history.get(d.id)||null})),cursor:page.docs.length===30?page.docs.at(-1).id:null};
+      return {rows:page.docs.filter(d=>d.id!==uid).map(d=>({...d.data(),route:history.get(d.id)||null})),cursor:page.docs.length===30?page.docs.at(-1):null};
     }
     async function depart(uid,payload){
       if(!/^ranchtrip_[a-f0-9]{32}$/.test(payload.opId)||!payload.targetUid||uid===payload.targetUid)throw V.error('visit-invalid','訪問先を確認できませんでした。');

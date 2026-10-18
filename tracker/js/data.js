@@ -291,7 +291,22 @@
   // レシピの報酬の合計(コインの額)
   const recipeReward = (rc) => Math.pow(3, rc.reward[0]) * rc.reward[1];
 
-  const api = { TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS, MARKET_DEALS, MARKET_PACKS, MARKET_REFRESH_MS, MARKET_FREE_MS, MARKET_RESET_GEMS };
+  // 毎週月曜日、日本時間。23:59台も含め、日付が変わった時点で終了。
+  const LUCKY_RATE = 0.05;
+  function luckyEventAt(time = Date.now()) {
+    const inactive = { active: false, multiplier: 1, rate: LUCKY_RATE, startsAt: null, endsAt: null, remaining: 0 };
+    if (!Number.isFinite(time)) return inactive;
+    const jst = new Date(time + 9 * 3600000);
+    if (jst.getUTCDay() !== 1) return inactive;
+    const dayStart = Math.floor((time + 9 * 3600000) / 86400000) * 86400000 - 9 * 3600000;
+    for (const [start, end] of [[540, 570], [1140, 1170], [1410, 1440]]) {
+      const startsAt = dayStart + start * 60000, endsAt = dayStart + end * 60000;
+      if (time >= startsAt && time < endsAt) return { active: true, multiplier: 2, rate: LUCKY_RATE * 2, startsAt, endsAt, remaining: endsAt - time };
+    }
+    return inactive;
+  }
+
+  const api = { luckyEventAt, LUCKY_RATE, TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS, MARKET_DEALS, MARKET_PACKS, MARKET_REFRESH_MS, MARKET_FREE_MS, MARKET_RESET_GEMS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FMV = Object.assign(root.FMV || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2,17 +2,31 @@
  const $=id=>document.getElementById(id),W=root.kayoWeeklyRace;
  const rewards=[['crates','箱','assets/ref/items/woodbox_0.png'],['gems','ジェム','assets/ref/tactical_gem.png'],['energy','スタミナ','assets/ref/tactical_bolt.png']];
  function create({uid,view,service,operate,canOpen=()=>true,isCurrent=()=>true}){
-  let state={eligible:true,...W.period()},offset=0,busy=false,flight=null,lastFetch=0,lastPhase='',result=null,seen=false,iframe=null,filmTimer=null,stopped=false;
+  let state={eligible:true,...W.period()},offset=0,busy=false,flight=null,lastFetch=0,lastPhase='',result=null,seen=false,iframe=null,filmTimer=null,stopped=false,dialogMode='race';
   const now=()=>Date.now()+offset,dialog=$('weekly-race-dialog');
+  const lucky=()=>root.FMV.luckyEventAt(now());
+  function paintLuckyDialog(){
+   const event=lucky();
+   $('weekly-race-eyebrow').textContent='K/AYO RANCH · MONDAY LUCKY';
+   $('weekly-race-title').textContent=event.active?'ラッキー発生率 ×2':'ラッキー2倍は終了しました';
+   $('weekly-race-copy').textContent='合成時にアイテムが1個増えるラッキーの発生率が、通常5%から10%になります。5個合成でラッキーが出ると3個完成します。';
+   $('weekly-race-deadline').textContent='毎週月曜日（日本時間）9:00〜9:30 ／ 19:00〜19:30 ／ 23:30〜23:59';
+   $('weekly-race-dialog-time').textContent=event.active?W.remaining(event.endsAt,now()):'現在は通常の発生率です';
+   $('weekly-race-action').hidden=true;
+  }
   function paint(){
    if(!isCurrent()||stopped)return;
-   const n=W.notice(state,now()),period=W.period(now());$('weekly-race-tool').hidden=period.phase==='closed';
-   if(period.phase!=='closed'){
+   const n=W.notice(state,now()),period=W.period(now()),event=lucky(),tool=$('weekly-race-tool');
+   tool.hidden=period.phase==='closed'&&!event.active;tool.dataset.event=event.active?'lucky':'race';
+   if(event.active){
+    $('weekly-race-label').textContent='ラッキー発生率\n×2';$('weekly-race-attention').hidden=true;
+    $('weekly-race-time').textContent=W.remaining(event.endsAt,now());
+   }else if(period.phase!=='closed'){
     $('weekly-race-label').textContent=period.phase==='entry'?'ころころレース\nエントリー':'ころころレース\n結果';
     $('weekly-race-attention').hidden=!n.attention;$('weekly-race-time').textContent=W.remaining(period.phase==='entry'?period.resultsAt:period.expiresAt,now());
    }
-   if(dialog.open&&!iframe){$('weekly-race-deadline').textContent=W.DEADLINE_NOTE;$('weekly-race-dialog-time').textContent=period.phase==='closed'?'受取期限が終了しました':W.remaining(period.phase==='entry'?period.resultsAt:period.expiresAt,now());if(period.phase==='closed'){$('weekly-race-action').disabled=true;$('weekly-race-action').textContent='受取期限が終了しました';}}
-   const phase=period.raceId+period.phase;if(lastPhase&&lastPhase!==phase){result=null;seen=false;void refresh(true).then(()=>{if(dialog.open&&!iframe)show();}).catch(()=>{});}lastPhase=phase;
+   if(dialog.open&&!iframe){if(dialogMode==='lucky')paintLuckyDialog();else{$('weekly-race-deadline').textContent=W.DEADLINE_NOTE;$('weekly-race-dialog-time').textContent=period.phase==='closed'?'受取期限が終了しました':W.remaining(period.phase==='entry'?period.resultsAt:period.expiresAt,now());if(period.phase==='closed'){$('weekly-race-action').disabled=true;$('weekly-race-action').textContent='受取期限が終了しました';}}}
+   const phase=period.raceId+period.phase;if(lastPhase&&lastPhase!==phase){result=null;seen=false;if(period.phase!=='closed')void refresh(true).then(()=>{if(dialog.open&&!iframe)show();}).catch(()=>{});}lastPhase=phase;
   }
   async function refresh(force=false){
    if(!isCurrent()||stopped)return;if(flight)return flight;if(!force&&Date.now()-lastFetch<60000)return;
@@ -36,7 +50,10 @@
   }
   async function act(task){if(busy)return;busy=true;$('weekly-race-action').disabled=true;$('weekly-race-error').textContent='';try{await task();}catch(e){if(!isCurrent())return;$('weekly-race-error').textContent=e.message||'通信を確認して、もう一度お試しください。';if(e.code==='race-expired')paint();}finally{busy=false;if(isCurrent()&&!iframe)show();}}
   function show(){
-   if(!isCurrent()||stopped)return;if(seen&&result){showResults();return;}
+   if(!isCurrent()||stopped)return;
+   if(dialogMode==='lucky'){$('weekly-race-rewards').replaceChildren();$('weekly-race-ranks').replaceChildren();paintLuckyDialog();return;}
+   $('weekly-race-eyebrow').textContent='K/AYO RANCH · WEEKEND RACE';
+   if(seen&&result){showResults();return;}
    const p=W.period(now());$('weekly-race-rewards').replaceChildren();$('weekly-race-ranks').replaceChildren();$('weekly-race-title').textContent='ころころレース';$('weekly-race-action').hidden=false;$('weekly-race-action').disabled=busy;
    if(p.phase==='entry'){
     $('weekly-race-copy').textContent=state.entered?'エントリー済みです。日曜日に結果を確認して、報酬を受け取ってください。':'完全運まかせの玉転がし！日曜日に結果が発表されます。';
@@ -56,7 +73,7 @@
   };
   const focus=()=>{if(!document.hidden&&isCurrent())void refresh(true).catch(()=>{});};
   root.addEventListener('message',receive);root.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);
-  $('weekly-race-button').onclick=async()=>{if(busy||!canOpen())return;$('weekly-race-error').textContent='';dialog.showModal();show();try{await refresh(true);show();}catch(e){$('weekly-race-error').textContent=e.message||'通信を確認してください。';}};
+  $('weekly-race-button').onclick=async()=>{if(busy||!canOpen())return;dialogMode=lucky().active?'lucky':'race';$('weekly-race-error').textContent='';dialog.showModal();show();if(dialogMode==='lucky')return;try{await refresh(true);show();}catch(e){$('weekly-race-error').textContent=e.message||'通信を確認してください。';}};
   $('weekly-race-close').onclick=()=>{if(!busy)dialog.close();};dialog.addEventListener('cancel',event=>{if(busy||iframe)event.preventDefault();});
   const ticker=setInterval(()=>{paint();if(!document.hidden&&W.period(now()).phase!=='closed'&&Date.now()-lastFetch>300000)void refresh().catch(()=>{});},1000);
   function stop(){stopped=true;clearInterval(ticker);clearFilm();dialog.close();root.removeEventListener('message',receive);root.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus);$('weekly-race-tool').hidden=true;}

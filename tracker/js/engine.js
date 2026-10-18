@@ -29,7 +29,6 @@
   const CARD_UNITS = { 1: 1, 2: 3, 3: 9 };
   // 収穫 1 回で出る食材の数(ユーザーから聞いた本家の数): 4 つ。星のレベル 1 つにつき 2 つ増える(ユーザーの指示)
   const HARVEST_BASE = 4, HARVEST_PER_STAR = 2;
-  const LUCKY_RATE = 0.05;
   const SAVE_VERSION = 3;   // 3: 土地の配置を、マップエディタの地図に変えた(古い保存データは使えない)
 
   function mulberry32(a) {
@@ -565,7 +564,7 @@
       if (n === 5) mk(used[1][0], used[1][1]);
 
       let lucky = null;
-      if (rng() < LUCKY_RATE) {
+      if (rng() < D.luckyEventAt(now()).rate) {
         const spot = nearestFree(c, r, 1)[0];
         if (spot) { mk(spot[0], spot[1]); lucky = { c: spot[0], r: spot[1] }; }
       }
@@ -573,15 +572,6 @@
       emit('merge', { anchor: [c, r], n, consumed, created, lucky, xp, newTier, kind: base.k });
       addXp(xp);
       return true;
-    }
-
-    // タップで合体: すでに 3 つ以上つながっている品物を、まとめて合体させる
-    function tryMerge(c, r) {
-      const group = findGroup(c, r);
-      if (group.length < 3) return false;
-      const n = group.length >= 5 ? 5 : 3;
-      const base = Object.assign({}, getItem(c, r));
-      return mergeCore(c, r, base, n, group.slice(0, n), null);
     }
 
     // 重ねて合体: 動かす品物(from)を、同じ品物(to)の上に落とす。
@@ -740,7 +730,6 @@
       if (it.k === 'lockbox') return { ok: false, reason: 'chest', info: chestInfo(c, r) };
       if (it.k === 'toolbox') return it.pend ? claimClear(c, r) : startClear(c, r);
       if (it.t === 'obs') return it.pend ? claimClear(c, r) : startClear(c, r);
-      if (mergeable(it) && tryMerge(c, r)) return { ok: true, merged: true };
       if (validCard(it)) return { ok: false, reason: 'card', info: cardInfo(c, r) };
       if (it.k === 'keys') return { ok: false, reason: 'key', tier: it.tier };
       if (it.t === 'chain') {

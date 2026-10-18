@@ -47,6 +47,11 @@
         const plan=rules.planSave({...profile.data(),...(saved.exists()?saved.data():{})},payload);
         if(!plan.ok) throw Object.assign(Error(plan.message),plan);
         if(!plan.alreadyApplied) {
+          // 開いた日時は publish() だけが更新する。保存で訪問先の順番を動かさない。
+          const directoryRef=sdk.doc(db,'googleRanchDirectory',uid);
+          const directory=root.kayoRanchVisits ? await transaction.get(directoryRef) : null;
+          const summary=directory ? root.kayoRanchVisits.directory(uid,profile.data().nickname,plan.stateJson) : null;
+          const previous=directory?.exists() ? directory.data() : null;
           transaction.set(saveRef(uid),{ranchStateJson:plan.stateJson,ranchStateVersion:plan.version,ranchSaveId:plan.saveId,ranchUpdatedAt:sdk.serverTimestamp()});
           if(plan.cookieCredit > 0) {
             const cookies = rules.walletCookies(profile.data()) + plan.cookieCredit;
@@ -54,7 +59,9 @@
             transaction.update(profileRef(uid),{cookies,kayoRanchCookieSaveId:plan.saveId,kayoRanchCookiesEarned:plan.cookiesEarned,trackerWriteNonce:plan.saveId.slice(-32)});
             transaction.set(sdk.doc(db,'googleRanchCookieClaims',uid,'operations',plan.saveId),{saveId:plan.saveId,amount:plan.cookieCredit,total:plan.cookiesEarned,baseVersion:payload.baseVersion,version:plan.version,createdAt:sdk.serverTimestamp()});
           }
-          if(root.kayoRanchVisits)transaction.set(sdk.doc(db,'googleRanchDirectory',uid),{...root.kayoRanchVisits.directory(uid,profile.data().nickname,plan.stateJson),updatedAt:sdk.serverTimestamp()});
+          if(summary && (!previous?.updatedAt || Object.entries(summary).some(([key,value])=>previous[key]!==value))) {
+            transaction.set(directoryRef,{...summary,updatedAt:previous?.updatedAt||sdk.serverTimestamp()});
+          }
         }
         return {...plan,cookies:rules.walletCookies(profile.data())+(plan.alreadyApplied?0:plan.cookieCredit||0),cookiesEarned:rules.cookieEarnings(plan.stateJson)};
       });

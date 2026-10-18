@@ -1977,9 +1977,8 @@
       if (it.t === 'obs' && /^(tree|rock)_/.test(it.k)) return it.pend
         ? { kind: 'materials', title: '素材の回収', copy: '本当に素材を回収しますか？', ok: '回収する' }
         : { kind: 'work', title: '作業の確認', copy: '作業者に作業させますか？', ok: '作業させる' };
-      // 3つ以上つながっている場合は合体なので、回収確認は出さない。
       const collectible = {coin:['coins','コイン'],gem:['gems','ジェム'],energy:['energy','スタミナ']}[it.k];
-      if (it.t === 'chain' && collectible && !(engine.mergeable(it) && engine.findGroup(hit.c, hit.r).length >= 3)) {
+      if (it.t === 'chain' && collectible) {
         const [kind, name] = collectible;
         return { kind, title: `${name}の回収`, copy: `本当に${name}を回収しますか？`, ok: '回収する' };
       }
