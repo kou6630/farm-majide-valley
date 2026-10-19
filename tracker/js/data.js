@@ -265,14 +265,38 @@
 
   // 市場。通貨パックは残高へ、特売の品物は盤面(満杯なら報酬の泡)へ届ける。
   const MARKET_REFRESH_MS = 4 * 3600000, MARKET_FREE_MS = 24 * 3600000, MARKET_RESET_GEMS = 99;
+  // 公開Marketplace表の価格を使い、実装済みの系統だけを販売候補にする。
+  // https://farm-merge-valley.fandom.com/wiki/Marketplace
+  // 表に価格がない食材・苗・工具箱は既存の価格体系を維持。
+  const MARKET_DEAL_SLOTS = 6;
   const MARKET_DEALS = [
-    { id: 'milk', name: 'ミルク', n: 9, stock: 5, currency: 'gems', price: 36, image: 'assets/ref/items/tactical_ing_milk.png', item: { t: 'ing', k: 'milk' } },
-    { id: 'toolbox', name: 'ツールボックス', n: 1, stock: 2, currency: 'gems', price: 199, image: 'assets/ref/items/tactical_toolbox_0.png', item: { t: 'chain', k: 'toolbox', tier: 0 } },
-    { id: 'wheat', name: '小麦の苗', n: 1, stock: 5, currency: 'coins', price: 50, image: 'assets/ref/items/tactical_wheat_1.png', item: { t: 'chain', k: 'wheat', tier: 1 } },
-    { id: 'brick', name: 'レンガ', n: 1, stock: 2, currency: 'gems', price: 27, image: 'assets/ref/items/tactical_brick_2.png', item: { t: 'chain', k: 'brick', tier: 2 } },
-    { id: 'keys', name: 'ブロンズキー', n: 1, stock: 2, currency: 'gems', price: 45, level: 12, image: 'assets/ref/items/tactical_keys_0.png', item: { t: 'chain', k: 'keys', tier: 0 } },
-    { id: 'logs', name: '木材', n: 1, stock: 2, currency: 'gems', price: 150, image: 'assets/ref/items/tactical_logs_3.png', item: { t: 'chain', k: 'logs', tier: 3 } },
+    { id: 'toolbox', family: 'tools', name: '工具箱', n: 1, stock: 2, currency: 'gems', price: 199, level: 5, image: 'assets/ref/items/tactical_toolbox_0.png', item: { t: 'chain', k: 'toolbox', tier: 0 } },
+    { id: 'wheat', family: 'crop', name: '小麦の苗', n: 1, stock: 5, currency: 'coins', price: 50, level: 1, image: 'assets/ref/items/tactical_wheat_1.png', item: { t: 'chain', k: 'wheat', tier: 1 } },
   ];
+  for (const [k, family] of [['tree', 'tree'], ['rock', 'rock']]) ['s', 'm', 'l'].forEach((size, tier) => {
+    const kind = k + '_' + size;
+    MARKET_DEALS.push({ id: kind, family, name: OBSTACLES[kind].name, n: 1, stock: 5, currency: 'coins', price: [50, 125, 450][tier], level: 2,
+      image: `assets/ref/items/tactical_obs_${kind}.png`, item: { t: 'obs', k: kind, tier: 0 } });
+  });
+  for (const k of ['logs', 'brick']) [9, 27, 81].forEach((price, tier) => {
+    MARKET_DEALS.push({ id: `${k}-${tier}`, family: k, name: `${CHAINS[k].name}（${tier + 1}段階目）`, n: 1, stock: 2, currency: 'gems', price, level: 2,
+      image: `assets/ref/items/tactical_${k}_${tier}.png`, item: { t: 'chain', k, tier } });
+  });
+  [27, 81, 243].forEach((price, index) => {
+    const tier = index + 2;
+    MARKET_DEALS.push({ id: `tools-${tier}`, family: 'tools', name: `工具（${tier + 1}段階目）`, n: 1, stock: 2, currency: 'gems', price, level: 11,
+      image: `assets/ref/items/tactical_tools_${tier}.png`, item: { t: 'chain', k: 'tools', tier } });
+  });
+  ['銅', '銀', '金'].forEach((color, tier) => {
+    for (const k of ['keys', 'lockbox']) MARKET_DEALS.push({ id: k === 'keys' && tier === 0 ? 'keys' : `${k}-${tier}`, family: k,
+      name: `${color}の${k === 'keys' ? '鍵' : '宝箱'}`, n: 1, stock: 2, currency: 'gems', price: (k === 'keys' ? [15, 35, 145] : [99, 199, 299])[tier], level: 12,
+      image: `assets/ref/items/tactical_${k}_${tier}.png`, item: { t: 'chain', k, tier } });
+  });
+  Object.entries(INGREDIENTS).forEach(([k, ingredient]) => {
+    const producer = Object.values(CHAINS).find(chain => chain.yields === k);
+    MARKET_DEALS.push({ id: k === 'milk' ? 'milk' : `ing-${k}`, family: 'ingredient', name: ingredient.name, n: 9, stock: 5, currency: 'gems', price: 36, level: producer.unlock,
+      image: `assets/ref/items/tactical_ing_${k}.png`, item: { t: 'ing', k } });
+  });
   const MARKET_PACKS = [];
   // 小パックは「まじバレー」の現行HUD素材そのもの。大パックは同じ素材から生成した派生絵。
   const marketPackImage = name => ({
@@ -306,7 +330,7 @@
     return inactive;
   }
 
-  const api = { luckyEventAt, LUCKY_RATE, TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS, MARKET_DEALS, MARKET_PACKS, MARKET_REFRESH_MS, MARKET_FREE_MS, MARKET_RESET_GEMS };
+  const api = { luckyEventAt, LUCKY_RATE, TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS, MARKET_DEAL_SLOTS, MARKET_DEALS, MARKET_PACKS, MARKET_REFRESH_MS, MARKET_FREE_MS, MARKET_RESET_GEMS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FMV = Object.assign(root.FMV || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

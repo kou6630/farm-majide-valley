@@ -1058,14 +1058,44 @@
     }
 
     // ---------- 市場 ----------
+    function rotateMarket(m) {
+      // 商品の抽選は保存済みシードと更新回数で行い、再表示では抽選しない。
+      const random = mulberry32((m.seed + Math.imul(m.rotation, 0x9e3779b9)) >>> 0);
+      const shuffle = list => {
+        const copy = list.slice();
+        for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; }
+        return copy;
+      };
+      const candidates = D.MARKET_DEALS.filter(d => (d.level || 1) <= s.level), families = new Map();
+      candidates.forEach(d => { if (!families.has(d.family)) families.set(d.family, []); families.get(d.family).push(d); });
+      const selected = shuffle([...families.values()]).slice(0, D.MARKET_DEAL_SLOTS).map(group => group[Math.floor(random() * group.length)]);
+      if (selected.length < D.MARKET_DEAL_SLOTS) selected.push(...shuffle(candidates.filter(d => !selected.includes(d))).slice(0, D.MARKET_DEAL_SLOTS - selected.length));
+      const previous = new Set(Array.isArray(m.offers) ? m.offers : []);
+      if (selected.length && selected.every(d => previous.has(d.id))) {
+        const alternatives = shuffle(candidates.filter(d => !previous.has(d.id)));
+        if (alternatives.length) {
+          const next = alternatives[0], index = selected.findIndex(d => d.family === next.family);
+          selected[index < 0 ? selected.length - 1 : index] = next;
+        }
+      }
+      m.offers = selected.map(d => d.id); m.rotation++; m.revision = 2;
+    }
     function marketInfo() {
       const t = now();
-      if (!s.market) s.market = { expiresAt: t + D.MARKET_REFRESH_MS, bought: {}, freeAt: {} };
+      if (!s.market || typeof s.market !== 'object' || Array.isArray(s.market)) s.market = { expiresAt: t + D.MARKET_REFRESH_MS, bought: {}, freeAt: {} };
       const m = s.market;
-      if (t >= m.expiresAt) { m.expiresAt += (Math.floor((t - m.expiresAt) / D.MARKET_REFRESH_MS) + 1) * D.MARKET_REFRESH_MS; m.bought = {}; }
+      if (!Number.isFinite(m.expiresAt)) m.expiresAt = t + D.MARKET_REFRESH_MS;
+      if (!m.bought || typeof m.bought !== 'object' || Array.isArray(m.bought)) m.bought = {};
+      if (!m.freeAt || typeof m.freeAt !== 'object' || Array.isArray(m.freeAt)) m.freeAt = {};
+      if (!Number.isInteger(m.seed)) m.seed = Math.floor(rng() * 4294967296) >>> 0;
+      if (!Number.isSafeInteger(m.rotation) || m.rotation < 0) m.rotation = 0;
+      if (t >= m.expiresAt) {
+        m.expiresAt += (Math.floor((t - m.expiresAt) / D.MARKET_REFRESH_MS) + 1) * D.MARKET_REFRESH_MS;
+        m.bought = {}; rotateMarket(m);
+      } else if (m.revision !== 2 || !Array.isArray(m.offers) || !m.offers.length || m.offers.length > D.MARKET_DEAL_SLOTS || new Set(m.offers).size !== m.offers.length || m.offers.some(id => !D.MARKET_DEALS.some(d => d.id === id))) rotateMarket(m);
       return {
         left: Math.max(0, m.expiresAt - t), expiresAt: m.expiresAt,
-        deals: D.MARKET_DEALS.map(d => ({ ...d, remaining: Math.max(0, d.stock - (m.bought[d.id] || 0)) })),
+        deals: m.offers.map(id => D.MARKET_DEALS.find(d => d.id === id)).map(d => ({ ...d, remaining: Math.max(0, d.stock - (m.bought[d.id] || 0)) })),
         packs: D.MARKET_PACKS.map(p => ({ ...p, left: p.free ? Math.max(0, (m.freeAt[p.id] || 0) - t) : 0 })),
       };
     }
@@ -1097,6 +1127,7 @@
       if (s.gems < D.MARKET_RESET_GEMS) return { ok: false, reason: 'nogems', cost: D.MARKET_RESET_GEMS };
       s.gems -= D.MARKET_RESET_GEMS;
       s.market.expiresAt = now() + D.MARKET_REFRESH_MS; s.market.bought = {};
+      rotateMarket(s.market);
       return { ok: true };
     }
 

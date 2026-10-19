@@ -21,7 +21,7 @@
     function render() {
       const scroll = $('market-scroll').scrollTop;
       const info = engine.marketInfo(); expiry = info.expiresAt;
-      $('market-content').innerHTML = `<section id="market-deals" class="market-section"><div class="market-section-heading"><div><small>FLASH SUPPLY</small><h2>フラッシュディール</h2></div><span>4時間ごとに補充</span></div><div class="market-grid">${info.deals.map(p => card(p, true)).join('')}</div><div class="market-refresh"><span>補充まで <b id="market-refresh-time">${time(info.left)}</b></span><button id="market-reset"><img src="${imageUrl('assets/ref/tactical_gem.png')}" alt="ジェム">${F.MARKET_RESET_GEMS} で在庫リセット</button></div><p class="market-delivery">素材は畑へお届け。空きがないときは報酬の泡に保管します。</p></section>`
+      $('market-content').innerHTML = `<section id="market-deals" class="market-section"><div class="market-section-heading"><div><small>FLASH SUPPLY</small><h2>フラッシュディール</h2></div><span>4時間ごとに商品入れ替え</span></div><div class="market-grid">${info.deals.map(p => card(p, true)).join('')}</div><div class="market-refresh"><span>更新まで <b id="market-refresh-time">${time(info.left)}</b></span><button id="market-reset"><img src="${imageUrl('assets/ref/tactical_gem.png')}" alt="ジェム">${F.MARKET_RESET_GEMS} で商品入れ替え</button></div><p class="market-delivery">素材は畑へお届け。空きがないときは報酬の泡に保管します。</p></section>`
         + ['crates', 'energy', 'gems'].map(kind => `<section id="market-${kind}" class="market-section"><div class="market-section-heading"><div><small>${kind === 'crates' ? 'SUPPLY DROPS' : kind === 'energy' ? 'ENERGY RECHARGE' : 'RADIANT GEMS'}</small><h2>${names[kind]}</h2></div><span>${kind === 'gems' ? 'トラッカーのKPで交換' : '残高に直接追加'}</span></div>${kind === 'gems' ? '<p class="market-kp-note">ぶりぶりトラッカーのKPを使ってジェムを購入できます。</p>' : ''}<div class="market-grid">${info.packs.filter(p => p.kind === kind).sort((a,b) => kind === 'gems' ? (b.n === 3500) - (a.n === 3500) : 0).map(p => card(p)).join('')}</div></section>`).join('');
       $('market-scroll').scrollTop = scroll;
       update();
@@ -49,13 +49,13 @@
     function feedback(res, p) {
       if (!res.ok) { view.toast(res.message || { nogems: 'ジェムが足りません', coins: 'コインが足りません', soldout: '売り切れです', cooldown: '次の無料受け取りまでお待ちください', level: 'まだ解放されていません' }[res.reason] || 'この商品は受け取れません'); return; }
       save(); render();
-      $('market-message').textContent = p ? `${p.name || names[p.kind]} ×${p.n.toLocaleString()} を受け取りました${res.bubbles && res.bubbles.length ? '（報酬の泡に保管）' : ''}` : '特売の在庫を補充しました';
+      $('market-message').textContent = p ? `${p.name || names[p.kind]} ×${p.n.toLocaleString()} を受け取りました${res.bubbles && res.bubbles.length ? '（報酬の泡に保管）' : ''}` : '特売の商品を入れ替えました';
       $('market-message').classList.remove('hidden');
     }
     function confirm(p) {
-      pending = p; $('market-confirm-title').textContent = p === 'reset' ? '特売の在庫を補充しますか？' : 'KPでジェムを購入しますか？';
-      $('market-confirm-copy').textContent = p === 'reset' ? `ジェム ${F.MARKET_RESET_GEMS} 個を使って在庫をリセットします。` : `${p.price}KPを使って、ジェム${p.n.toLocaleString()}個を受け取ります。`;
-      $('market-confirm-ok').textContent = p === 'reset' ? 'ジェムで補充' : `${p.price}KPで購入`;
+      pending = p; $('market-confirm-title').textContent = p === 'reset' ? '特売の商品を入れ替えますか？' : 'KPでジェムを購入しますか？';
+      $('market-confirm-copy').textContent = p === 'reset' ? `ジェム ${F.MARKET_RESET_GEMS} 個を使って商品と在庫を更新します。` : `${p.price}KPを使って、ジェム${p.n.toLocaleString()}個を受け取ります。`;
+      $('market-confirm-ok').textContent = p === 'reset' ? 'ジェムで入れ替え' : `${p.price}KPで購入`;
       $('market-confirm').classList.remove('hidden'); $('market-confirm-ok').focus();
     }
     function cancelConfirmation() { pending = null; $('market-confirm').classList.add('hidden'); }
