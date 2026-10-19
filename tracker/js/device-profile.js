@@ -51,7 +51,7 @@
       onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
       prepare() {
         if (!pending) pending = mobile
-          ? Promise.resolve().then(() => fetcher('mobile-assets/manifest.json?v=20261018-lucky-icon')).then(r => {
+          ? Promise.resolve().then(() => fetcher('mobile-assets/manifest.json?v=20261020-discovery')).then(r => {
             if (!r.ok) throw Error('mobile assets unavailable');
             return r.json();
           }).then(data => { assets = data.assets || {}; }).catch(() => { assets = {}; })

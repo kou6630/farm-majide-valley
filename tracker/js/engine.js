@@ -48,6 +48,46 @@
 
     const emit = (type, data) => events.push(Object.assign({ type }, data));
     const drain = () => { const e = events; events = []; return e; };
+    const discoveryEntries = new Map(D.DISCOVERY_ENTRIES.map(it => [it.id, it]));
+
+    function discover(id) {
+      if (!discoveryEntries.has(id)) return;
+      const book = s.discovery;
+      if (book.seen[id]) return;
+      book.seen[id] = true; book.revision = (book.revision || 0) + 1;
+    }
+    function syncDiscoveries() {
+      for (const [pos, it] of Object.entries(s.items)) if (isOwned(...pos.split(',').map(Number))) discover(D.discoveryId(it));
+      for (const bubble of s.rewardBubbles) discover(D.discoveryId(bubble.item));
+      for (const [k, n] of Object.entries(s.inv)) if (n > 0) discover('ing:' + k);
+      for (const [k, card] of Object.entries(s.cards)) for (let tier = 0; tier < Math.min(3, card.lv || 0); tier++) discover(`card:${k}:${tier}`);
+      if (s.flightTickets > 0) discover('ticket');
+      for (const [bk, b] of Object.entries(s.buildings)) if (BLAND[bk] && s.lands[BLAND[bk].id]) {
+        if (b.repaired) discover('building:' + bk);
+        if (b.reward) discover('product:' + b.reward.id);
+      }
+    }
+    function normalizeDiscovery() {
+      const old = s.discovery, seen = {}, claimed = {};
+      for (const id of discoveryEntries.keys()) {
+        if (old?.seen?.[id] === true || old?.claimed?.[id] === true) seen[id] = true;
+        if (old?.claimed?.[id] === true) claimed[id] = true;
+      }
+      s.discovery = { v: 1, seen, claimed, revision: Object.keys(seen).length + Object.keys(claimed).length };
+    }
+    function discoveryInfo() {
+      const book = s.discovery;
+      const entries = D.DISCOVERY_ENTRIES.map(it => ({ ...it, seen: book.seen[it.id] === true, claimed: book.claimed[it.id] === true, reward: D.DISCOVERY_REWARD }));
+      return { entries, total: entries.length, discovered: entries.filter(it => it.seen).length, pending: entries.filter(it => it.seen && !it.claimed).length };
+    }
+    function claimDiscovery(id) {
+      const book = s.discovery;
+      if (!discoveryEntries.has(id) || book.seen[id] !== true) return { ok: false, reason: 'undiscovered' };
+      if (book.claimed[id] === true) return { ok: false, reason: 'claimed' };
+      book.claimed[id] = true; book.revision = (book.revision || 0) + 1;
+      s.gems += D.DISCOVERY_REWARD;
+      return { ok: true, id, gems: D.DISCOVERY_REWARD };
+    }
 
     // ---------- 状態 ----------
     function newState() {
@@ -55,7 +95,7 @@
         v: SAVE_VERSION, layoutRevision: LAYOUT_REVISION, level: 1, xp: 0, coins: 0, gems: GEM_START, energy: MAX_ENERGY, crates: START_CRATES,
         lastEnergyAt: now(), lastCrateAt: now(), flightTickets: 0, cookiesEarned: 0, lastFreeSortDay: -1,
         lands: {}, items: {}, nextId: 1,
-        buildings: {}, inv: {}, jobs: [], rentals: [], bpos: {}, cards: {}, rewardBubbles: [],
+        buildings: {}, inv: {}, jobs: [], rentals: [], bpos: {}, cards: {}, rewardBubbles: [], discovery: { v: 1, seen: {}, claimed: {} },
       };
       Object.keys(BUILDINGS).forEach((k) => { st.buildings[k] = { job: null, repaired: !BUILDINGS[k].repair, paid: {} }; });
       s = st;
@@ -64,6 +104,7 @@
       // 最初の盤面。マップエディタの地図(layout.js)なら、地図に置いた品物。そうでなければ、小麦のタネ数個
       if (!LAYOUT_CUSTOM) [[1, 2, 0], [2, 2, 0], [3, 3, 0], [1, 3, 1], [3, 1, 1], [2, 4, 0]].forEach(([c, r, t]) => putItem(c, r, { t: 'chain', k: 'wheat', tier: t }));
       tickChests();
+      syncDiscoveries();
       return st;
     }
 
@@ -90,6 +131,7 @@
       it.id = s.nextId++;
       if (it.k === 'lockbox' && isOwned(c, r)) it.expiresAt = now() + CHEST_LIFETIME_MS;
       s.items[key(c, r)] = it;
+      if (isOwned(c, r)) discover(D.discoveryId(it));
       return it;
     }
     const getItem = (c, r) => (s ? s.items[key(c, r)] || null : null);
@@ -178,6 +220,7 @@
       const b = s.buildings[bk];
       needs.forEach((rq) => { b.paid[rq.i] = rq.n; });
       b.repaired = true;
+      discover('building:' + bk);
       emit('repaired', { building: bk });
       return { ok: true, repaired: true, consumed: selected.size };
     }
@@ -230,6 +273,7 @@
           const rec = BUILDINGS[bk].recipes.find((x) => x.id === b.job.id);
           b.job = null;
           b.reward = { id: rec.id, tier: rec.reward[0], count: rec.reward[1] };
+          discover('product:' + rec.id);
           emit('recipeReady', { building: bk, recipe: rec });
         }
       });
@@ -282,6 +326,7 @@
     function placeRewards(c, r, rewards) {
       const spots = nearestRewardFree(c, r, rewards.length), spawned = [], bubbles = [];
       rewards.forEach((reward, i) => {
+        discover(D.discoveryId(reward));
         const pos = spots[i];
         if (pos) { const item = putItem(pos[0], pos[1], reward); spawned.push({ c: pos[0], r: pos[1], item }); }
         else {
@@ -373,6 +418,7 @@
       emit('spawn', { c, r, item: Object.assign({}, it), from: 'crate' });
       // 通常の中身とは別抽選。回収前の盤面・報酬の泡も上限に数える。
       if (ticketCount() < 3 && rng() < 1 / 50) {
+        discover('ticket');
         const item = { t: 'ticket', k: 'flightTicket', tier: 0 }, spot = nearestFree(c, r, 1)[0];
         if (spot) { const ticket = putItem(...spot, item); emit('spawn', { c: spot[0], r: spot[1], item: { ...ticket }, from: 'crate' }); }
         else { const ticket = { ...item, id: s.nextId++ }; s.rewardBubbles.push({ id: s.nextId++, c, r, item: ticket }); }
@@ -1052,6 +1098,7 @@
       s.lands[id] = true;
       LANDS.forEach((l) => { if (l.parent === id) s.lands[l.id] = true; });   // 同じ土地にある、2 つめ以降の建物
       tickChests();
+      syncDiscoveries();
       emit('landBought', { id });
       addXp(10 + land.id * 2);
       return { ok: true };
@@ -1092,7 +1139,7 @@
       if (t >= m.expiresAt) {
         m.expiresAt += (Math.floor((t - m.expiresAt) / D.MARKET_REFRESH_MS) + 1) * D.MARKET_REFRESH_MS;
         m.bought = {}; rotateMarket(m);
-      } else if (m.revision !== 2 || !Array.isArray(m.offers) || !m.offers.length || m.offers.length > D.MARKET_DEAL_SLOTS || new Set(m.offers).size !== m.offers.length || m.offers.some(id => !D.MARKET_DEALS.some(d => d.id === id))) rotateMarket(m);
+      } else if (m.revision !== 2 || !Array.isArray(m.offers) || (!m.offers.length && D.MARKET_DEALS.some(d => d.level <= s.level)) || m.offers.length > D.MARKET_DEAL_SLOTS || new Set(m.offers).size !== m.offers.length || m.offers.some(id => !D.MARKET_DEALS.some(d => d.id === id))) rotateMarket(m);
       return {
         left: Math.max(0, m.expiresAt - t), expiresAt: m.expiresAt,
         deals: m.offers.map(id => D.MARKET_DEALS.find(d => d.id === id)).map(d => ({ ...d, remaining: Math.max(0, d.stock - (m.bought[d.id] || 0)) })),
@@ -1124,6 +1171,7 @@
     }
     function refreshMarket() {
       marketInfo();
+      if (!D.MARKET_DEALS.some(d => d.level <= s.level)) return { ok: false, reason: 'level' };
       if (s.gems < D.MARKET_RESET_GEMS) return { ok: false, reason: 'nogems', cost: D.MARKET_RESET_GEMS };
       s.gems -= D.MARKET_RESET_GEMS;
       s.market.expiresAt = now() + D.MARKET_REFRESH_MS; s.market.bought = {};
@@ -1138,6 +1186,7 @@
         const d = JSON.parse(json);
         if (!d || d.v !== SAVE_VERSION) return false;
         s = d;
+        normalizeDiscovery();
         if (!Number.isInteger(s.flightTickets) || s.flightTickets < 0) s.flightTickets = 0;
         if (!Number.isSafeInteger(s.cookiesEarned) || s.cookiesEarned < 0) s.cookiesEarned = 0;
         if (!Number.isInteger(s.lastFreeSortDay)) s.lastFreeSortDay = -1;
@@ -1155,6 +1204,7 @@
         Object.keys(BUILDINGS).forEach((k) => { if (!s.buildings[k]) s.buildings[k] = { job: null, repaired: !BUILDINGS[k].repair, paid: {} }; else { if (s.buildings[k].repaired === undefined) s.buildings[k].repaired = true; if (!s.buildings[k].paid) s.buildings[k].paid = {}; } });
         migrateShopClouds();
         migrateCards();
+        syncDiscoveries();
         tick();
         return true;
       } catch (e) { return false; }
@@ -1222,7 +1272,7 @@
 
     return {
       get state() { return s; },
-      newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket,
+      newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket, discoveryInfo, claimDiscovery,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree, nearestDropCell,
       findGroup, stackGroup, mergeable, canGather, gatherItems, openCrate, openCrates, sortInfo, sortItems, ticketCount, cardOf, starsOf, cardInfo, useCard, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
       startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, repairBuilding, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, regrowSkipInfo, skipRegrow, chestInfo, openChest, claimRewardBubble,

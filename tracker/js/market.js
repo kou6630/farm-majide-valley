@@ -21,7 +21,7 @@
     function render() {
       const scroll = $('market-scroll').scrollTop;
       const info = engine.marketInfo(); expiry = info.expiresAt;
-      $('market-content').innerHTML = `<section id="market-deals" class="market-section"><div class="market-section-heading"><div><small>FLASH SUPPLY</small><h2>フラッシュディール</h2></div><span>4時間ごとに商品入れ替え</span></div><div class="market-grid">${info.deals.map(p => card(p, true)).join('')}</div><div class="market-refresh"><span>更新まで <b id="market-refresh-time">${time(info.left)}</b></span><button id="market-reset"><img src="${imageUrl('assets/ref/tactical_gem.png')}" alt="ジェム">${F.MARKET_RESET_GEMS} で商品入れ替え</button></div><p class="market-delivery">素材は畑へお届け。空きがないときは報酬の泡に保管します。</p></section>`
+      $('market-content').innerHTML = `<section id="market-deals" class="market-section"><div class="market-section-heading"><div><small>FLASH SUPPLY</small><h2>フラッシュディール</h2></div><span>4時間ごとに商品入れ替え</span></div><div class="market-grid">${info.deals.map(p => card(p, true)).join('') || '<p class="market-delivery">レベル2から特売の商品が並びます。</p>'}</div><div class="market-refresh"><span>更新まで <b id="market-refresh-time">${time(info.left)}</b></span><button id="market-reset"><img src="${imageUrl('assets/ref/tactical_gem.png')}" alt="ジェム">${F.MARKET_RESET_GEMS} で商品入れ替え</button></div><p class="market-delivery">素材は畑へお届け。空きがないときは報酬の泡に保管します。</p></section>`
         + ['crates', 'energy', 'gems'].map(kind => `<section id="market-${kind}" class="market-section"><div class="market-section-heading"><div><small>${kind === 'crates' ? 'SUPPLY DROPS' : kind === 'energy' ? 'ENERGY RECHARGE' : 'RADIANT GEMS'}</small><h2>${names[kind]}</h2></div><span>${kind === 'gems' ? 'トラッカーのKPで交換' : '残高に直接追加'}</span></div>${kind === 'gems' ? '<p class="market-kp-note">ぶりぶりトラッカーのKPを使ってジェムを購入できます。</p>' : ''}<div class="market-grid">${info.packs.filter(p => p.kind === kind).sort((a,b) => kind === 'gems' ? (b.n === 3500) - (a.n === 3500) : 0).map(p => card(p)).join('')}</div></section>`).join('');
       $('market-scroll').scrollTop = scroll;
       update();
@@ -33,6 +33,7 @@
       const available = info.packs.some(p => p.free && !p.left); $('market-badge').classList.toggle('hidden', !available);
       if (modal.classList.contains('hidden')) return;
       if (expiry !== info.expiresAt) { render(); return; }
+      if ($('market-reset')) $('market-reset').disabled = !info.deals.length;
       if ($('market-refresh-time')) $('market-refresh-time').textContent = time(info.left);
       info.packs.filter(p => p.free).forEach(p => { const b = modal.querySelector(`[data-buy="${p.id}"]`); if (b) { b.disabled = p.left > 0; b.textContent = p.left ? time(p.left) : '無料で受け取る'; } });
       info.packs.filter(p => p.currency === 'kp').forEach(p => { const b = modal.querySelector(`[data-buy="${p.id}"]`); if(b)b.disabled=buying || kp()===null || kp()<p.price; });

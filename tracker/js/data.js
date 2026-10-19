@@ -267,11 +267,10 @@
   const MARKET_REFRESH_MS = 4 * 3600000, MARKET_FREE_MS = 24 * 3600000, MARKET_RESET_GEMS = 99;
   // 公開Marketplace表の価格を使い、実装済みの系統だけを販売候補にする。
   // https://farm-merge-valley.fandom.com/wiki/Marketplace
-  // 表に価格がない食材・苗・工具箱は既存の価格体系を維持。
+  // 食材・作物・動物はユーザー指定で販売しない。工具箱は既存価格を維持。
   const MARKET_DEAL_SLOTS = 6;
   const MARKET_DEALS = [
     { id: 'toolbox', family: 'tools', name: '工具箱', n: 1, stock: 2, currency: 'gems', price: 199, level: 5, image: 'assets/ref/items/tactical_toolbox_0.png', item: { t: 'chain', k: 'toolbox', tier: 0 } },
-    { id: 'wheat', family: 'crop', name: '小麦の苗', n: 1, stock: 5, currency: 'coins', price: 50, level: 1, image: 'assets/ref/items/tactical_wheat_1.png', item: { t: 'chain', k: 'wheat', tier: 1 } },
   ];
   for (const [k, family] of [['tree', 'tree'], ['rock', 'rock']]) ['s', 'm', 'l'].forEach((size, tier) => {
     const kind = k + '_' + size;
@@ -292,11 +291,6 @@
       name: `${color}の${k === 'keys' ? '鍵' : '宝箱'}`, n: 1, stock: 2, currency: 'gems', price: (k === 'keys' ? [15, 35, 145] : [99, 199, 299])[tier], level: 12,
       image: `assets/ref/items/tactical_${k}_${tier}.png`, item: { t: 'chain', k, tier } });
   });
-  Object.entries(INGREDIENTS).forEach(([k, ingredient]) => {
-    const producer = Object.values(CHAINS).find(chain => chain.yields === k);
-    MARKET_DEALS.push({ id: k === 'milk' ? 'milk' : `ing-${k}`, family: 'ingredient', name: ingredient.name, n: 9, stock: 5, currency: 'gems', price: 36, level: producer.unlock,
-      image: `assets/ref/items/tactical_ing_${k}.png`, item: { t: 'ing', k } });
-  });
   const MARKET_PACKS = [];
   // 小パックは「まじバレー」の現行HUD素材そのもの。大パックは同じ素材から生成した派生絵。
   const marketPackImage = name => ({
@@ -316,6 +310,32 @@
   const recipeReward = (rc) => Math.pow(3, rc.reward[0]) * rc.reward[1];
 
   // 毎週月曜日、日本時間。23:59台も含め、日付が変わった時点で終了。
+  // 図鑑は実装済みの見た目だけを使う。収穫後・枯れは別の発見にはしない。
+  const DISCOVERY_REWARD = 1;
+  const DISCOVERY_GROUPS = { crops: '作物', animals: '動物', supplies: '素材・報酬', cards: '強化カード', ingredients: '収穫物', products: '料理・製品', obstacles: '木・岩など', buildings: '建物' };
+  const DISCOVERY_ENTRIES = [];
+  const entry = (id, group, name, image, extra = {}) => DISCOVERY_ENTRIES.push({ id, group, name, image, ...extra });
+  Object.entries(CHAINS).forEach(([k, ch]) => {
+    const group = ch.type === 'crop' ? 'crops' : ch.type === 'animal' ? 'animals' : 'supplies';
+    for (let tier = ch.minTier || 0; tier <= ch.max; tier++) entry(`chain:${k}:${tier}`, group, `${ch.name} ${tier + 1}段階目`, `assets/ref/items/${k !== 'cookie' ? 'tactical_' : ''}${k}_${tier}.png`, { k, tier });
+    if (ch.type !== 'bonus') for (let tier = 0; tier < 3; tier++) entry(`card:${k}:${tier}`, 'cards', `${ch.name}の強化カード ★${tier + 1}`, `assets/ref/cards/tactical_pic_${k}.png`, { k, tier, card: true });
+  });
+  Object.entries(INGREDIENTS).forEach(([k, it]) => entry(`ing:${k}`, 'ingredients', it.name, `assets/ref/items/tactical_ing_${k}.png`));
+  Object.entries(OBSTACLES).forEach(([k, it]) => entry(`obs:${k}`, 'obstacles', it.name, `assets/ref/items/${/^(tree|rock)_/.test(k) ? 'tactical_' : ''}${it.sprite}.png`));
+  Object.entries(BUILDINGS).forEach(([k, bd]) => {
+    entry(`building:${k}`, 'buildings', bd.name, `assets/ref/tactical_${k}.png`);
+    bd.recipes.forEach(rc => entry(`product:${rc.id}`, 'products', rc.name, `assets/ref/products/tactical_${rc.id}.png`));
+  });
+  entry('ticket', 'supplies', '飛行機チケット', 'assets/visits/ticket.png');
+  const discoveryId = it => {
+    if (!it) return null;
+    if (it.t === 'ticket') return 'ticket';
+    if (it.t === 'ing' || it.t === 'obs') return `${it.t}:${it.k}`;
+    if (it.t === 'chain' && CHAINS[it.k] && Number.isInteger(it.tier) && it.tier >= 0) return `chain:${it.k}:${Math.min(it.tier, CHAINS[it.k].max)}`;
+    if (it.t === 'card' && Number.isInteger(it.tier)) return `card:${it.k}:${it.tier}`;
+    return null;
+  };
+
   const LUCKY_RATE = 0.05;
   function luckyEventAt(time = Date.now()) {
     const inactive = { active: false, multiplier: 1, rate: LUCKY_RATE, startsAt: null, endsAt: null, remaining: 0 };
@@ -330,7 +350,7 @@
     return inactive;
   }
 
-  const api = { luckyEventAt, LUCKY_RATE, TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS, MARKET_DEAL_SLOTS, MARKET_DEALS, MARKET_PACKS, MARKET_REFRESH_MS, MARKET_FREE_MS, MARKET_RESET_GEMS };
+  const api = { DISCOVERY_REWARD, DISCOVERY_GROUPS, DISCOVERY_ENTRIES, discoveryId, luckyEventAt, LUCKY_RATE, TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS, MARKET_DEAL_SLOTS, MARKET_DEALS, MARKET_PACKS, MARKET_REFRESH_MS, MARKET_FREE_MS, MARKET_RESET_GEMS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FMV = Object.assign(root.FMV || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

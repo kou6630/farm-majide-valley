@@ -24,7 +24,7 @@
     active?.race?.stop();
     $('ranch-menu').close();
     if($('action-confirm').open)$('action-confirm').close();
-    for(const id of ['travel-picker','visit-gift'])if($(id)?.open)$(id).close();
+    for(const id of ['travel-picker','visit-gift','discovery-dialog'])if($(id)?.open)$(id).close();
     $('ranch-gate').hidden=false;
     $('ranch-message').textContent=text;
     $('ranch-login').hidden=loggedIn;
@@ -204,7 +204,7 @@
       if(saved && !engine.load(saved.gameJson))throw Error('保存済みの牧場データを読み込めませんでした。');
       if(!saved)engine.newState();
       window.ranchTutorial=saved?.tutorial||0;
-      const view=session.view=window.FMV.createView(engine,$('stage'),{confirmationScope:user.uid,cookies:()=>session.cookies+Math.max(0,(engine.state.cookiesEarned||0)-session.cookiesEarned),airport:kind=>session.travel?.airport(kind),reset:()=>view.toast('登録した牧場の進捗は、この画面からリセットできません。')});
+      const view=session.view=window.FMV.createView(engine,$('stage'),{save:()=>capture(session),confirmationScope:user.uid,cookies:()=>session.cookies+Math.max(0,(engine.state.cookiesEarned||0)-session.cookiesEarned),airport:kind=>session.travel?.airport(kind),reset:()=>view.toast('登録した牧場の進捗は、この画面からリセットできません。')});
       window.FMV.createMarket(engine,view,()=>capture(session),{getKp:()=>session.kp,purchase:id=>buyGems(session,id)});
       loading('牧場の画像を読み込み中…','3 / 3　画像を準備',0);
       await waitLoading(touch=>window.FMV.loadAssets((p,counts)=>{

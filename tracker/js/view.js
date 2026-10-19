@@ -227,6 +227,7 @@
     function focusAirport() {cam.x=airport[0];cam.y=airport[1]-90;cam.zoom=Math.max(cam.zoom,.65);clampCam();}
     function showVisit(remote,trip) {
       cancelPress();hideChest();hideCard();hideRegrow();closePanel();
+      discovery?.close();
       engine=remote;visitMode={trip,targets:root.kayoRanchVisits.targets(trip.stateJson)};
       obstacleFocus=null;vis.clear();focusAirport();
     }
@@ -2107,6 +2108,7 @@
     });
     function updateHud() {
       const s = homeEngine.state, t = Date.now();
+      discovery?.update();
       const sort=homeEngine.sortInfo();
       setText('sort-badge',sort.free?'無料':'');
       $('sort-badge').hidden=!sort.free;
@@ -2245,6 +2247,11 @@
       if (res.reason === 'full') toast('マスに十分な空きがありません');
       return res;
     }
+
+    const discovery = F.createDiscovery?.(homeEngine, {
+      canOpen: () => !visitMode && !$('ranch-play').inert && !$('ranch-menu').open && performance.now() >= sortBusyUntil,
+      save: () => hooks.save?.(), toast,
+    });
 
     // ---------- メインループ ----------
     let last = performance.now(), pruneAt = 0, panelAt = 0;
