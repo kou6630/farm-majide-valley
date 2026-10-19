@@ -10,7 +10,7 @@
   const CRATE_REGEN_AMOUNT = 5;
   const MAX_CRATES = 40;
   const START_CRATES = 40;
-  const KEY_DROP_RATE = 1 / 100, CHEST_DROP_RATE = 1 / 100;
+  const KEY_DROP_RATE = 1 / 100, CHEST_DROP_RATE = 0.75 / 100;
   // アップグレードカード(本家): 収穫のときに、ときどき星 1 のカードが出る。星 1 を 3 枚で星 2、星 2 を 3 枚で星 3 に合体できる。
   // 使うと、その作物・動物の「星のレベル」が上がり、収穫で出る食材が、星 1 つにつき 2 つ増える。
   // ★3に強化するまでは、所持数・使用済み枚数にかかわらず収穫ごとに抽選する。
@@ -345,7 +345,7 @@
 
     // ---------- 箱 ----------
     function crateItem() {
-      // Lv12から、カギ・宝箱は毎回それぞれ1%。待ち回数や確率上昇はなし。
+      // Lv12から、カギ1%・宝箱0.75%。待ち回数や確率上昇はなし。
       if (s.level >= 12) {
         const x = rng();
         const reward = x < KEY_DROP_RATE ? 'keys' : x < KEY_DROP_RATE + CHEST_DROP_RATE ? 'lockbox' : null;
