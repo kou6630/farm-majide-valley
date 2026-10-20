@@ -786,6 +786,7 @@
       if (!validCard(it) || !isOwned(c, r)) return null;
       const lv = starsOf(it.k), star = it.tier + 1;
       return { id: it.id, k: it.k, star, lv, canUse: star > lv,
+        canExchange: lv === 3, exchangeGems: star * 100,
         harvest: HARVEST_BASE + HARVEST_PER_STAR * lv,
         nextHarvest: HARVEST_BASE + HARVEST_PER_STAR * star };
     }
@@ -798,6 +799,16 @@
       cd.lv = star; cd.spent = (cd.spent || 0) + CARD_UNITS[star];
       emit('cardUsed', { k, star, c, r, item });
       return { ok: true };
+    }
+    function exchangeCard(c, r, id) {
+      const info = cardInfo(c, r);
+      if (!info || info.id !== id) return { ok: false, reason: 'none' };
+      if (!info.canExchange) return { ok: false, reason: 'notmax' };
+      const item = { ...getItem(c, r) }, gems = info.exchangeGems;
+      delete s.items[key(c, r)];
+      s.gems += gems;
+      emit('cardExchanged', { k: info.k, star: info.star, c, r, item, gems });
+      return { ok: true, gems };
     }
     // 旧一覧の枚数を一度だけ盤面・泡へ移す。強化状態はそのまま保存する。
     function migrateCards() {
@@ -1325,7 +1336,7 @@
       get state() { return s; },
       newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket, discoveryInfo, claimDiscovery, syncKillCoinAwards, killCoinInfo, deployKillBox, openKillBox,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree, nearestDropCell,
-      findGroup, stackGroup, mergeable, canGather, gatherItems, openCrate, openCrates, sortInfo, sortItems, ticketCount, cardOf, starsOf, cardInfo, useCard, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
+      findGroup, stackGroup, mergeable, canGather, gatherItems, openCrate, openCrates, sortInfo, sortItems, ticketCount, cardOf, starsOf, cardInfo, useCard, exchangeCard, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
       startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, repairBuilding, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, regrowSkipInfo, skipRegrow, chestInfo, openChest, claimRewardBubble,
       emitRaw: emit,
       consts: { ENERGY_REGEN_MS, CRATE_REGEN_MS, CRATE_REGEN_AMOUNT, MAX_CRATES, FREE_FINISH_MS, HARVEST_BASE, HARVEST_PER_STAR, WORKER_RENT_GEMS, WORKER_RENT_MS },

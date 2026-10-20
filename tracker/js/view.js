@@ -1396,6 +1396,13 @@
           break;
         }
         case 'card': break;
+        case 'cardExchanged': {
+          const [x, y] = tileFeet(ev.c, ev.r);
+          flyTo([x, y - 45], 'gems', 3, ev.gems);
+          burst(x, y - 45, 12, { size: 14, colors: ['#e6c8ff', '#b266ff', '#ffffff'] });
+          toast(`★${ev.star}カードを${ev.gems}ジェムに交換しました`);
+          hideCard(); break;
+        }
         case 'cardUsed': {
           const [x, y] = tileFeet(ev.c, ev.r);
           burst(x, y - 60, 16, { size: 16 }); ring(x, y, '#ffd35a', 100);
@@ -2238,10 +2245,10 @@
       const info = engine.cardInfo(c, r), lv = engine.starsOf(it.k), name = CHAINS[it.k].name;
       setText('card-title', info ? `${name}の強化カード ↑${info.star}` : name);
       setText('card-status', `強化 ${lv}/3・収穫 ${engine.consts.HARVEST_BASE + engine.consts.HARVEST_PER_STAR * lv} 個`);
-      setText('card-effect', info ? info.canUse ? `強化 ${info.star}/3・収穫 ${info.nextHarvest} 個になります` : lv === 3 ? 'この種類は最大まで強化済みです' : '現在の強化より低いカードです。合体で段階を上げよう' : '同じ品物を3個で合体。5個なら次の段階が2個できます');
-      setText('card-help', info ? info.star < 3 ? '同じ種類・同じ段階を3枚で合体。5枚なら2枚できます' : '強化は盤面の同じ種類すべてに反映されます' : '収穫時に強化カードが出ることがあります');
-      $('card-use').classList.toggle('hidden', !info); $('card-use').disabled = !info || !info.canUse;
-      $('card-use').textContent = info && info.canUse ? '強化する' : '強化済み';
+      setText('card-effect', info ? info.canUse ? `強化 ${info.star}/3・収穫 ${info.nextHarvest} 個になります` : info.canExchange ? `この種類は★3まで強化済みです。余ったカードを${info.exchangeGems}ジェムに交換できます` : '現在の強化より低いカードです。合体で段階を上げよう' : '同じ品物を3個で合体。5個なら次の段階が2個できます');
+      setText('card-help', info ? info.canExchange ? '選んだカード1枚を消費します。強化★3はそのままです' : info.star < 3 ? '同じ種類・同じ段階を3枚で合体。5枚なら2枚できます' : '強化は盤面の同じ種類すべてに反映されます' : '収穫時に強化カードが出ることがあります');
+      $('card-use').classList.toggle('hidden', !info); $('card-use').disabled = !info || !(info.canUse || info.canExchange);
+      $('card-use').textContent = info && info.canExchange ? `${info.exchangeGems}ジェムに交換` : info && info.canUse ? '強化する' : '強化済み';
       const el = $('card-popover'); el.classList.remove('hidden');
       const [bx, by] = tileFeet(c, r), [sx, sy] = w2s(bx, by - dimsOf(it).h);
       const half = el.offsetWidth / 2;
@@ -2252,9 +2259,11 @@
     $('card-use').addEventListener('pointerdown', () => { cardPressId = cardFor && cardFor.id; });
     $('card-use').addEventListener('pointercancel', () => { cardPressId = null; });
     $('card-use').addEventListener('click', event => {
-      if (!cardFor || (event.detail !== 0 && cardPressId !== cardFor.id)) return;
+      if (!cardFor || visitMode || $('ranch-play').inert || $('ranch-menu').open || (event.detail !== 0 && cardPressId !== cardFor.id)) return;
       const { c, r, id } = cardFor; cardPressId = null;
-      const res = engine.useCard(c, r, id); flush();
+      const info = engine.cardInfo(c, r);
+      const res = info && info.canExchange ? engine.exchangeCard(c, r, id) : engine.useCard(c, r, id); flush();
+      if (res.ok) hooks.save?.();
       if (res.ok) hideCard(); else updateCard();
     });
 
