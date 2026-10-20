@@ -1527,7 +1527,13 @@
 
     // ---------- 建物パネル ----------
     const ingImg = (k) => assetUrl(`ref/items/ing_${k}`);
-    let panelTab = 'order';
+    let panelTab = 'order', panelMarkup = null;
+    function setPanelBody(markup) {
+      // 表示が同じならDOMを残し、pointerdownとclickの間にボタンを消さない。
+      if (panelMarkup === markup) return;
+      $('panel-body').innerHTML = markup;
+      panelMarkup = markup;
+    }
     function openPanel(bk) { panelFor = bk; panelTab = 'order'; $('panel').classList.remove('hidden'); refreshPanel(true); }
     function closePanel() { panelFor = null; $('panel').classList.add('hidden'); }
     // 本家の「オーダー」画面のように: 建物ごとに、注文は 1 つずつ。お客さんの顔 / 必要な食材 = 作れる品物 / 報酬 / 作る。下の小さな絵で、作るものを切り替える
@@ -1537,7 +1543,7 @@
       const url = `assets/ref/npc/tactical_npc_${(bIndex(bk) * 4 + i) % NPC_N}.png`;
       return deviceProfile ? deviceProfile.image(url).url : url;
     };
-    function refreshPanel(force) {
+    function refreshPanel() {
       if (!panelFor) return;
       const bk = panelFor, def = BUILDINGS[bk], b = engine.state.buildings[bk], now = Date.now(), lv = engine.state.level;
       const body = $('panel-body');
@@ -1546,26 +1552,22 @@
       $('ord-title').textContent = broken ? def.name + 'の修理' : 'オーダー';
       if (broken) {
         const needs = engine.repairNeeds(bk), enough = needs.every((x) => x.have >= x.n);
-        const repairState = JSON.stringify([bk, needs]);
-        if (!force && body.dataset.repairState === repairState) return;
-        body.dataset.repairState = repairState;
-        body.innerHTML = `<p class="rep-msg">${enough ? '材料がそろいました。修理しますか？' : '必要な材料を盤面にそろえよう'}</p><div class="rep-list">` + needs.map((x) => {
+        setPanelBody(`<p class="rep-msg">${enough ? '材料がそろいました。修理しますか？' : '必要な材料を盤面にそろえよう'}</p><div class="rep-list">` + needs.map((x) => {
           const ok = x.have >= x.n, no = Math.min(BUILDINGS[bk].repair[x.i].no, CHAINS[x.k].count);
           return `<div class="rep-item"><span class="no">${CHAINS[x.k].name} ${no}番め</span><img src="${assetUrl(`ref/items/${x.k}_${x.tier}`)}" alt="${CHAINS[x.k].name} ${no}番め"><b class="${ok ? 'ok' : ''}">${x.have}/${x.n}</b>${x.paid ? `<small>納品済み ${x.paid}個を含む</small>` : ''}</div>`;
-        }).join('') + `</div><p class="rep-msg">修理すると、盤面から必要な材料だけを使います。</p><div class="rep-actions"><button class="cook-btn ${enough ? 'go' : ''}" data-repair="1" ${enough ? '' : 'disabled'}>修理する</button></div>`;
+        }).join('') + `</div><p class="rep-msg">修理すると、盤面から必要な材料だけを使います。</p><div class="rep-actions"><button class="cook-btn ${enough ? 'go' : ''}" data-repair="1" ${enough ? '' : 'disabled'}>修理する</button></div>`);
         return;
       }
-      body.dataset.repairState = '';
       $('tab-order').classList.toggle('on', panelTab === 'order'); $('tab-stock').classList.toggle('on', panelTab === 'stock');
       if (panelTab === 'stock') {
         const inv = engine.state.inv, chips = Object.keys(inv).filter((n) => inv[n] > 0).map((n) => `<span class="chip"><img src="${ingImg(n)}" alt=""><b>${inv[n]}</b></span>`).join('');
-        body.innerHTML = `<div class="ord-stock">${chips || '<p class="ord-empty">食材は、まだありません</p>'}</div>`;
+        setPanelBody(`<div class="ord-stock">${chips || '<p class="ord-empty">食材は、まだありません</p>'}</div>`);
         return;
       }
       // 下の小さな絵は、ショップごとの「いまの注文」(ショップ 1 つにつき 1 つ)
       const shops = Object.keys(BUILDINGS).filter((k) => engine.hasShop(k) && engine.orderOf(k));
       const sel = engine.orderOf(bk);
-      if (!sel) { body.innerHTML = `<p class="ord-empty">レベル ${Math.min(...def.recipes.map((r) => r.unlock || 1))} で作れるようになります</p>`; return; }
+      if (!sel) { setPanelBody(`<p class="ord-empty">レベル ${Math.min(...def.recipes.map((r) => r.unlock || 1))} で作れるようになります</p>`); return; }
       const inv = engine.state.inv;
       const enough = (rc) => Object.keys(rc.needs).every((n) => (inv[n] || 0) >= rc.needs[n]);
       const job = b.job ? sel : null;
@@ -1579,18 +1581,28 @@
       if (b.reward) btn = `<button class="cook-btn go" data-claim="1">受け取る</button>`;
       else if (job) btn = left <= FREE
         ? '<button class="cook-btn" data-free="1">無料</button>'
-        : `<button class="cook-btn rush" data-skip="1" aria-label="ジェム${engine.recipeSkipInfo(bk).cost}個で生産を即完了"><img src="${assetUrl('ref/gem')}" alt="ジェム"><b>${engine.recipeSkipInfo(bk).cost}</b><span>即完了</span></button>`;
+        : `<button class="cook-btn rush" data-skip="1" aria-label="生産を即完了"><img src="${assetUrl('ref/gem')}" alt="ジェム"><b data-order-cost></b><span>即完了</span></button>`;
       else btn = `<button class="cook-btn ${enough(sel) ? 'go' : ''}" data-id="${sel.id}">作る</button>`;
       const n = sel.reward[1], coin = assetUrl(`ref/items/coin_${sel.reward[0]}`);
-      const timer = b.reward ? '<span class="ord-time">生産完了</span>' : job ? `<span class="ord-time"><img src="${assetUrl('ref/clock')}" alt="">${mmss2(left)}</span>` : '';
-      body.innerHTML = `<div class="ord-main"><img class="ord-npc" src="${npcImg(bk, def.recipes.indexOf(sel))}" alt="">
+      const timer = b.reward ? '<span class="ord-time">生産完了</span>' : job ? `<span class="ord-time"><img src="${assetUrl('ref/clock')}" alt=""><span data-order-time></span></span>` : '';
+      setPanelBody(`<div class="ord-main"><img class="ord-npc" src="${npcImg(bk, def.recipes.indexOf(sel))}" alt="">
           <div class="ord-eq">${b.reward ? '' : needs + '<span class="ord-equal">=</span>'}<span class="ord-prodwrap"><img class="ord-prod" src="${assetUrl(`ref/products/${sel.id}`)}" alt="">${timer}</span></div></div>
         <div class="ord-bar"><span>報酬</span><img src="${coin}" alt="">${n > 1 ? `<span>×${n}</span>` : ''}${btn}</div>
         <div class="ord-list">${shops.map((k) => {
           const rc = engine.orderOf(k), cooking = !!engine.state.buildings[k].job;
           const mark = cooking ? `<img class="clk" src="${assetUrl('ref/clock')}" alt="">` : (enough(rc) ? '<i class="bang">!</i>' : '');
           return `<button class="ord-tile ${k === bk ? 'on' : ''}" data-shop="${k}"><img class="p" src="${assetUrl(`ref/products/${rc.id}`)}" alt=""><img class="c" src="${assetUrl(`ref/items/coin_${rc.reward[0]}`)}" alt="">${mark}</button>`;
-        }).join('')}</div>`;
+        }).join('')}</div>`);
+      // カウントダウンと即完了の価格だけを更新し、ボタンと画像は再生成しない。
+      if (job) {
+        const timerNode = body.querySelector('[data-order-time]'), text = mmss2(left);
+        if (timerNode && timerNode.textContent !== text) timerNode.textContent = text;
+        if (left > FREE) {
+          const cost = engine.recipeSkipInfo(bk).cost, costNode = body.querySelector('[data-order-cost]');
+          if (costNode && costNode.textContent !== String(cost)) costNode.textContent = String(cost);
+          body.querySelector('[data-skip]')?.setAttribute('aria-label', `ジェム${cost}個で生産を即完了`);
+        }
+      }
     }
     $('panel-body').addEventListener('click', (e) => {
       const q = e.target.closest('[data-ing]');
