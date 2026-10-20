@@ -627,6 +627,13 @@
     }
     function mergeable(it) { return validCard(it) ? it.tier < 2 : !!it && it.t === 'chain' && it.k !== 'toolbox' && it.k !== 'woodbox' && it.tier < CHAINS[it.k].max && (it.k !== 'lockbox' || !it.expiresAt || it.expiresAt > now()); }
 
+    // つながった数以内の最大の組で合体。余りはそのまま残す(1回最大30個)。
+    function mergeInfo(count) {
+      if (!Number.isInteger(count) || count < 3) return null;
+      const n = count < 5 ? 3 : Math.min(30, Math.floor(count / 5) * 5);
+      return { n, produced: n === 3 ? 1 : n / 5 * 2, batches: n === 3 ? 1 : n / 5 };
+    }
+
     // 上下左右でつながった同じ品物の集合(起点に近い順)
     function findGroup(c, r) {
       const it = getItem(c, r);
@@ -650,21 +657,23 @@
     // 合体の本体: used = 使うマス(先頭が起点)。extra = マスにない消費分(重ねて動かしてきた品物)
     function mergeCore(c, r, base, n, used, extra) {
       const newTier = base.tier + 1;
+      const { produced, batches } = mergeInfo(n);
       const consumed = (extra || []).concat(used.map(([x, y]) => ({ c: x, r: y, item: Object.assign({}, getItem(x, y)) })));
       used.forEach(([x, y]) => { delete s.items[key(x, y)]; });
 
       const created = [];
       const mk = (x, y) => { const it = putItem(x, y, { t: base.t, k: base.k, tier: newTier }); created.push({ c: x, r: y, item: Object.assign({}, it) }); };
-      mk(c, r);
-      if (n === 5) mk(used[1][0], used[1][1]);
+      for (let i = 0; i < produced; i++) mk(used[i][0], used[i][1]);
 
-      let lucky = null;
-      if (rng() < D.luckyEventAt(now()).rate) {
-        const spot = nearestFree(c, r, 1)[0];
-        if (spot) { mk(spot[0], spot[1]); lucky = { c: spot[0], r: spot[1] }; }
+      const luckies = [], rate = D.luckyEventAt(now()).rate;
+      // 5個合成を繰り返す場合と同じ抽選回数。3個合成は従来どおり1回。
+      let luckyCount = 0;
+      for (let i = 0; i < batches; i++) if (rng() < rate) luckyCount++;
+      if (luckyCount) for (const spot of nearestFree(c, r, luckyCount)) {
+        mk(spot[0], spot[1]); luckies.push({ c: spot[0], r: spot[1] });
       }
-      const xp = Math.pow(3, newTier) * (n === 5 ? 2 : 1);   // newTier = 合体で、いまできる段階(1 → 3、2 → 9、3 → 27)
-      emit('merge', { anchor: [c, r], n, consumed, created, lucky, xp, newTier, kind: base.k });
+      const xp = Math.pow(3, newTier) * produced;   // 通常の完成個数ぶんの経験値。ラッキーの追加分は従来どおり加算しない。
+      emit('merge', { anchor: [c, r], n, consumed, created, baseCount: produced, lucky: luckies[0] || null, luckies, xp, newTier, kind: base.k });
       addXp(xp);
       return true;
     }
@@ -685,7 +694,7 @@
       const g = stackGroup(from, to);
       if (!g) return false;
       const it = getItem(from[0], from[1]), base = Object.assign({}, getItem(to[0], to[1]));
-      const n = g.length + 1 >= 5 ? 5 : 3;
+      const { n } = mergeInfo(g.length + 1);
       const extra = [{ c: from[0], r: from[1], item: Object.assign({}, it) }];
       delete s.items[key(from[0], from[1])];
       return mergeCore(to[0], to[1], base, n, g.slice(0, n - 1), extra);
@@ -1336,7 +1345,7 @@
       get state() { return s; },
       newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket, discoveryInfo, claimDiscovery, syncKillCoinAwards, killCoinInfo, deployKillBox, openKillBox,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree, nearestDropCell,
-      findGroup, stackGroup, mergeable, canGather, gatherItems, openCrate, openCrates, sortInfo, sortItems, ticketCount, cardOf, starsOf, cardInfo, useCard, exchangeCard, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
+      findGroup, stackGroup, mergeInfo, mergeable, canGather, gatherItems, openCrate, openCrates, sortInfo, sortItems, ticketCount, cardOf, starsOf, cardInfo, useCard, exchangeCard, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
       startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, repairBuilding, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, regrowSkipInfo, skipRegrow, chestInfo, openChest, claimRewardBubble,
       emitRaw: emit,
       consts: { ENERGY_REGEN_MS, CRATE_REGEN_MS, CRATE_REGEN_AMOUNT, MAX_CRATES, FREE_FINISH_MS, HARVEST_BASE, HARVEST_PER_STAR, WORKER_RENT_GEMS, WORKER_RENT_MS },

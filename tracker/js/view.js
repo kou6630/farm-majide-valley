@@ -810,7 +810,8 @@
     // ドラッグ中、同じ品物の上に重ねると合体できるとき、つながっている品物のマスを返す(合体できなければ null)
     function previewInfo() {
       if (!drag || !drag.hover) return null;
-      return engine.stackGroup(drag.from, drag.hover);
+      const group = engine.stackGroup(drag.from, drag.hover);
+      return group && group.slice(0, engine.mergeInfo(group.length + 1).n - 1);
     }
 
     function rewardBubblePositions() {
@@ -1075,13 +1076,13 @@
           drawItem(it, 0, 0, t, { pos: [drag.x, drag.y], lift: 40, liftY: 0 });
           const info = drag.hover && previewInfo();
           if (info) {
-            const n = info.length + 1 >= 5 ? 5 : 3, [hx, hy] = tileCenter(drag.hover[0], drag.hover[1]);
+            const { n } = engine.mergeInfo(info.length + 1), [hx, hy] = tileCenter(drag.hover[0], drag.hover[1]);
             const bx = hx, by = hy - 126 + Math.sin(t * 8) * 2;
             ctx.save();
             ctx.fillStyle = '#182a34'; ctx.strokeStyle = '#91d5cf'; ctx.lineWidth = 2;
             cutRect(bx - 26, by - 26, 52, 52, 8); ctx.fill(); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(bx - 7, by + 23); ctx.lineTo(bx, by + 34); ctx.lineTo(bx + 7, by + 23); ctx.fill();
-            ctx.fillStyle = n === 5 ? '#91d5cf' : '#ece8e1'; ctx.font = '900 30px "Bahnschrift",system-ui,sans-serif';
+            ctx.fillStyle = n >= 5 ? '#91d5cf' : '#ece8e1'; ctx.font = '900 30px "Bahnschrift",system-ui,sans-serif';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), bx, by + 2);
             ctx.restore();
           }
@@ -1272,7 +1273,7 @@
             if (i > 0) later(250, () => { const [bx, by] = tileCenter(cr.c, cr.r); burst(bx, by, 8, { size: 13 }); });
           });
           later(250, () => {
-            const big = ev.n === 5;
+            const big = ev.n >= 5;
             burst(ax, ay, big ? 20 : 12, { size: big ? 20 : 16, speed: big ? 340 : 260 });
             ring(ax, ay + 10, big ? '#ff9ac6' : '#fff7a8', big ? 150 : 110);
             // 経験値: 金の王冠がレベルのメダルへ飛ぶ
@@ -1282,9 +1283,9 @@
             for (let i = 0; i < Math.min(5, 2 + ev.newTier); i++) {
               flyers.push({ x0: sx, y0: sy, cx: sx + (Math.random() - 0.5) * 160, cy: sy - 60 - Math.random() * 60, x1: medal.left + medal.width / 2, y1: medal.top + medal.height / 2, t0: performance.now() + 120 + i * 80, dur: 700, img: imgs['ui/crown'], kind: 'xp', amt: 0, el: $('medal') });
             }
-            if (big) { floater(ax, ay - 118, '×2 ボーナス!', '#ffd23f', 28); shake = 9; }
-            if (ev.lucky) {
-              const [lx, ly] = tileCenter(ev.lucky.c, ev.lucky.r);
+            if (big) { floater(ax, ay - 118, `×${ev.baseCount} ボーナス!`, '#ffd23f', 28); shake = 9; }
+            for (const lucky of ev.luckies || (ev.lucky ? [ev.lucky] : [])) {
+              const [lx, ly] = tileCenter(lucky.c, lucky.r);
               burst(lx, ly, 22, { size: 20, colors: ['#ff7aa8', '#ffd23f', '#7ad0ff', '#fff'] });
               floater(lx, ly - 70, 'ラッキー!', '#ff9ac6', 34);
             }
@@ -2246,7 +2247,7 @@
       setText('card-title', info ? `${name}の強化カード ↑${info.star}` : name);
       setText('card-status', `強化 ${lv}/3・収穫 ${engine.consts.HARVEST_BASE + engine.consts.HARVEST_PER_STAR * lv} 個`);
       setText('card-effect', info ? info.canUse ? `強化 ${info.star}/3・収穫 ${info.nextHarvest} 個になります` : info.canExchange ? `この種類は★3まで強化済みです。余ったカードを${info.exchangeGems}ジェムに交換できます` : '現在の強化より低いカードです。合体で段階を上げよう' : '同じ品物を3個で合体。5個なら次の段階が2個できます');
-      setText('card-help', info ? info.canExchange ? '選んだカード1枚を消費します。強化★3はそのままです' : info.star < 3 ? '同じ種類・同じ段階を3枚で合体。5枚なら2枚できます' : '強化は盤面の同じ種類すべてに反映されます' : '収穫時に強化カードが出ることがあります');
+      setText('card-help', info ? info.canExchange ? '選んだカード1枚を消費します。強化★3はそのままです' : info.star < 3 ? '同じ種類・同じ段階を3枚で合体。5枚ごとに2枚、最大30枚までまとめて合体できます' : '強化は盤面の同じ種類すべてに反映されます' : '収穫時に強化カードが出ることがあります');
       $('card-use').classList.toggle('hidden', !info); $('card-use').disabled = !info || !(info.canUse || info.canExchange);
       $('card-use').textContent = info && info.canExchange ? `${info.exchangeGems}ジェムに交換` : info && info.canUse ? '強化する' : '強化済み';
       const el = $('card-popover'); el.classList.remove('hidden');
