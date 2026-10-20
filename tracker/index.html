@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0f1923">
 <title>K/AYO牧場</title>
-<script src="js/device-profile.js?v=20261020-discovery"></script>
+<script src="js/device-profile.js?v=20261020-kill-coin"></script>
 <link rel="stylesheet" href="css/style.css?v=20261016-sort-tier">
 <link rel="stylesheet" href="css/tactical-ui.css?v=20261016-sort-tier">
 <link rel="stylesheet" href="css/account.css?v=20261017-quality">
 <link rel="stylesheet" href="css/visits.css?v=20261016-collect-fx">
 <link rel="stylesheet" href="css/weekly-race.css?v=20261018-lucky-icon">
 <link rel="stylesheet" href="css/discovery.css?v=20261020-discovery">
+<link rel="stylesheet" href="css/kill-coin.css?v=20261020-kill-coin">
 <link rel="icon" type="image/svg+xml" href="assets/ui/tactical/cargo.svg">
 </head>
 <body>
@@ -41,6 +42,15 @@
   <button id="ranch-save-exit">保存して終了</button>
   <button id="ranch-retry" hidden>保存を再試行</button>
   <button id="ranch-logout" class="ranch-logout">ログアウト</button>
+</dialog>
+<dialog id="kill-coin-dialog" class="kill-coin-dialog" aria-labelledby="kill-coin-title">
+  <header><h2 id="kill-coin-title">killコイン</h2><button id="kill-coin-close" aria-label="killコインを閉じる">×</button></header>
+  <span class="kill-coin-tag">火曜日限定</span>
+  <p>「ポイント獲得」で獲得した<strong>KP1ごとに50％で銅コイン1枚</strong>！<br>火曜日23:59までにKPを獲得してください。</p>
+  <p>箱をタップすると空きマスにコインが出ます。入りきらない分は箱に残ります。<br>火曜終了時の未配置分は、自動で箱になります。空きがなければシャボンで届きます。</p>
+  <img class="kill-coin-art" data-ranch-src="assets/ui/tactical/kill-box-v1.png" alt="KILL箱">
+  <div class="kill-coin-bank" aria-label="箱に入れるコイン数"><img data-ranch-src="assets/ref/items/tactical_coin_0.png" alt="銅コイン"><b id="kill-coin-count">0</b></div>
+  <button id="kill-coin-deploy">箱を出す</button><p id="kill-coin-ended" hidden>今週のイベントは終了しました。コインは箱に残ります。</p><p id="kill-coin-message" role="status"></p>
 </dialog>
 <dialog id="discovery-dialog" class="discovery-dialog" aria-labelledby="discovery-title">
   <header class="discovery-header"><img class="discovery-book" data-ranch-src="assets/ui/tactical/discovery-book-v1.png" alt=""><div><h2 id="discovery-title">図鑑</h2><p>牧場で見つけたものの記録</p></div><div class="discovery-wallet"><img data-ranch-src="assets/ref/tactical_gem.png" alt="ジェム"><b id="discovery-balance">0</b></div><button id="discovery-close" aria-label="図鑑を閉じる">×</button></header>
@@ -137,6 +147,7 @@
   <button id="shovel-btn" class="farm-tool" aria-label="シャベルをアイテムへドラッグして消す" title="アイテムへドラッグして消す"><img data-ranch-src="assets/ref/tactical_shovel.png" alt="シャベル" draggable="false"><span>シャベル</span></button>
   <button id="sort-btn" class="farm-tool" aria-label="整列"><img data-ranch-src="assets/ui/tactical/sort.png" alt="" draggable="false"><span>整列</span><b id="sort-badge" class="tool-badge">無料</b></button>
   <div id="weekly-race-tool" hidden><button id="weekly-race-button" class="farm-tool" aria-haspopup="dialog" aria-controls="weekly-race-dialog"><img id="weekly-lucky-icon" data-ranch-src="assets/ui/tactical/lucky-double-v1.png" alt="" draggable="false" hidden><span id="weekly-race-marbles" class="race-marbles" aria-hidden="true"><i></i><i></i><i></i></span><span id="weekly-race-label">ころころレースエントリー</span><b id="weekly-race-attention" class="tool-badge" hidden>!</b></button><small id="weekly-race-time"></small></div>
+  <div id="kill-coin-tool" hidden><button id="kill-coin-button" class="farm-tool" aria-haspopup="dialog" aria-controls="kill-coin-dialog"><img data-ranch-src="assets/ui/tactical/kill-box-v1.png" alt="" draggable="false"><span>killコイン</span><b id="kill-coin-attention" class="tool-badge" hidden>!</b></button><small id="kill-coin-time"></small></div>
 </div>
 <div id="shovel-cursor" class="shovel-cursor hidden" aria-hidden="true"><img data-ranch-src="assets/ref/tactical_shovel.png" alt="" draggable="false"><span>アイテムに重ねて離す</span></div>
 
@@ -224,11 +235,12 @@
 
 </main>
 <script src="ranch-state.js?v=20261016-cookies"></script>
-<script src="ranch-cloud.js?v=20261018-drag-lucky"></script>
+<script src="ranch-cloud.js?v=20261020-kill-coin"></script>
 <script src="ranch-login.js"></script>
+<script src="kill-coin-state.js?v=20261020-kill-coin"></script>
 <script src="js/layout.js"></script>
-<script src="js/data.js?v=20261020-discovery"></script>
-<script src="js/engine.js?v=20261020-discovery"></script>
+<script src="js/data.js?v=20261020-kill-coin"></script>
+<script src="js/engine.js?v=20261020-kill-coin"></script>
 <script src="visits-state.js?v=20261015-visits"></script>
 <script src="visits-cloud.js?v=20261018-drag-lucky"></script>
 <script src="visits-ui.js?v=20261016-collect-fx"></script>
@@ -237,9 +249,10 @@
 <script src="weekly-race-ui.js?v=20261018-lucky-icon"></script>
 <script src="js/fx.js"></script>
 <script src="js/discovery.js?v=20261020-discovery"></script>
-<script src="js/view.js?v=20261020-discovery"></script>
+<script src="js/kill-coin-ui.js?v=20261020-kill-coin"></script>
+<script src="js/view.js?v=20261020-kill-coin"></script>
 <script src="js/market.js?v=20261020-discovery"></script>
-<script src="ranch-browser.js?v=20261020-discovery"></script>
+<script src="ranch-browser.js?v=20261020-kill-coin"></script>
 <script type="module">
   import('./ranch-auth.js?v=20261016-free-race').catch(()=>window.kayoRanchBrowser.fail({code:'auth-init-failed'}));
 </script>

@@ -2,6 +2,7 @@
 // 状態を変える操作は、見た目の演出用イベントを events に積む(view 側が drain して再生する)。
 (function (root) {
   const D = typeof module !== 'undefined' && module.exports ? require('./data.js') : root.FMV;
+  const K = typeof module !== 'undefined' && module.exports ? require('../../kill-coin-state.js') : root.killCoinState;
   const { CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, CELL_LAND, MAX_ENERGY, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS } = D;
 
   // 本家と同じ: エネルギーは 3 分に 1(上限 50)。箱は 5 分に 5 個(上限 40。ご褒美で、上限を超えることもある)
@@ -89,13 +90,60 @@
       return { ok: true, id, gems: D.DISCOVERY_REWARD };
     }
 
+    // KP側の累計台帳を差分で取り込む。牧場保存とKP獲得が同時でも互いを上書きしない。
+    function syncKillCoinAwards(raw) {
+      const state = s.killCoins;
+      for (const [day, earned] of Object.entries(K.awards(raw))) {
+        const previous = state.imported[day] || 0;
+        if (earned <= previous) continue;
+        state.pending[day] = (state.pending[day] || 0) + earned - previous;
+        state.imported[day] = earned;
+      }
+      expireKillCoins();
+    }
+    function killCoinInfo() {
+      const period = K.period(now());
+      return { ...period, coins: s.killCoins.pending[period.day] || 0 };
+    }
+    function spawnKillBox(day, automatic = false, at = null) {
+      const coins = s.killCoins.pending[day] || 0;
+      if (!coins) return { ok: false, reason: 'empty' };
+      const origin = at || ownedCells()[0] || [0, 0], pos = nearestFree(...origin, 1)[0];
+      if (!pos && !automatic) return { ok: false, reason: 'full' };
+      const item = { t: 'killbox', k: 'kill', tier: 0, coins, eventDay: day };
+      if (pos) { putItem(...pos, item); emit('rewardClaimed', { c: origin[0], r: origin[1], spawned: [{ c: pos[0], r: pos[1], item }], bubbles: [] }); }
+      else s.rewardBubbles.push({ id: s.nextId++, c: origin[0], r: origin[1], item });
+      delete s.killCoins.pending[day];
+      return { ok: true, coins, bubbled: !pos };
+    }
+    function deployKillBox(at) {
+      const info = killCoinInfo();
+      if (!info.active) return { ok: false, reason: 'closed' };
+      return spawnKillBox(info.day, false, at);
+    }
+    function expireKillCoins() {
+      const p = K.period(now());
+      for (const day of Object.keys(s.killCoins.pending)) if (day !== p.day || !p.active) spawnKillBox(day, true);
+    }
+    function openKillBox(c, r) {
+      const box = getItem(c, r);
+      if (!box || box.t !== 'killbox' || !isOwned(c, r)) return { ok: false, reason: 'none' };
+      const spots = nearestFree(c, r, box.coins);
+      if (!spots.length) return { ok: false, reason: 'full' };
+      const spawned = spots.map(([x, y]) => ({ c: x, r: y, item: putItem(x, y, { t: 'chain', k: 'coin', tier: 0 }) }));
+      box.coins -= spawned.length;
+      if (!box.coins) delete s.items[key(c, r)];
+      emit('rewardClaimed', { c, r, spawned, bubbles: [] });
+      return { ok: true, coins: spawned.length, remaining: box.coins };
+    }
+
     // ---------- 状態 ----------
     function newState() {
       const st = {
         v: SAVE_VERSION, layoutRevision: LAYOUT_REVISION, level: 1, xp: 0, coins: 0, gems: GEM_START, energy: MAX_ENERGY, crates: START_CRATES,
         lastEnergyAt: now(), lastCrateAt: now(), flightTickets: 0, cookiesEarned: 0, lastFreeSortDay: -1,
         lands: {}, items: {}, nextId: 1,
-        buildings: {}, inv: {}, jobs: [], rentals: [], bpos: {}, cards: {}, rewardBubbles: [], discovery: { v: 1, seen: {}, claimed: {} },
+        buildings: {}, inv: {}, jobs: [], rentals: [], bpos: {}, cards: {}, rewardBubbles: [], discovery: { v: 1, seen: {}, claimed: {} }, killCoins: { imported: {}, pending: {} },
       };
       Object.keys(BUILDINGS).forEach((k) => { st.buildings[k] = { job: null, repaired: !BUILDINGS[k].repair, paid: {} }; });
       s = st;
@@ -254,6 +302,7 @@
 
     // ---------- 時間経過 ----------
     function tick() {
+      expireKillCoins();
       tickChests();
       const t = now();
       if (s.energy < MAX_ENERGY) {
@@ -769,6 +818,7 @@
     function tap(c, r) {
       const it = getItem(c, r);
       if (!it || !isOwned(c, r)) return { ok: false, reason: 'none' };
+      if (it.t === 'killbox') return openKillBox(c, r);
       if (it.t === 'ticket') {
         if ((s.flightTickets || 0) >= 3) return { ok: false, reason: 'ticketsfull' };
         s.flightTickets = (s.flightTickets || 0) + 1; delete s.items[key(c, r)]; emit('ticketCollected', { c, r, item: it }); return { ok: true };
@@ -1187,6 +1237,7 @@
         if (!d || d.v !== SAVE_VERSION) return false;
         s = d;
         normalizeDiscovery();
+        s.killCoins = { imported: K.awards(s.killCoins?.imported), pending: K.awards(s.killCoins?.pending) };
         if (!Number.isInteger(s.flightTickets) || s.flightTickets < 0) s.flightTickets = 0;
         if (!Number.isSafeInteger(s.cookiesEarned) || s.cookiesEarned < 0) s.cookiesEarned = 0;
         if (!Number.isInteger(s.lastFreeSortDay)) s.lastFreeSortDay = -1;
@@ -1272,7 +1323,7 @@
 
     return {
       get state() { return s; },
-      newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket, discoveryInfo, claimDiscovery,
+      newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket, discoveryInfo, claimDiscovery, syncKillCoinAwards, killCoinInfo, deployKillBox, openKillBox,
       getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree, nearestDropCell,
       findGroup, stackGroup, mergeable, canGather, gatherItems, openCrate, openCrates, sortInfo, sortItems, ticketCount, cardOf, starsOf, cardInfo, useCard, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
       startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, repairBuilding, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, regrowSkipInfo, skipRegrow, chestInfo, openChest, claimRewardBubble,

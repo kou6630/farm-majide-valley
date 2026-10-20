@@ -24,7 +24,7 @@
     active?.race?.stop();
     $('ranch-menu').close();
     if($('action-confirm').open)$('action-confirm').close();
-    for(const id of ['travel-picker','visit-gift','discovery-dialog'])if($(id)?.open)$(id).close();
+    for(const id of ['travel-picker','visit-gift','discovery-dialog','kill-coin-dialog'])if($(id)?.open)$(id).close();
     $('ranch-gate').hidden=false;
     $('ranch-message').textContent=text;
     $('ranch-login').hidden=loggedIn;
@@ -79,6 +79,7 @@
   }
   function capture(session){
     if(!session.engine || !current(session) || session.ended)return;
+    session.engine.syncKillCoinAwards(session.killCoinAwards || {});
     session.engine.tick();
     const snapshot=rules.normalizeSnapshot(JSON.stringify({schemaVersion:1,gameJson:session.engine.serialize(),tutorial:Number(window.ranchTutorial)||0}));
     if(!snapshot){pause(session,Error('牧場の保存データを確認できませんでした。'));return;}
@@ -203,6 +204,8 @@
       const engine=session.engine=window.FMV.createEngine({now:()=>session.frozenAt ?? Date.now()});
       if(saved && !engine.load(saved.gameJson))throw Error('保存済みの牧場データを読み込めませんでした。');
       if(!saved)engine.newState();
+      session.killCoinAwards=result.killCoinAwards||{};
+      engine.syncKillCoinAwards(session.killCoinAwards);
       window.ranchTutorial=saved?.tutorial||0;
       const view=session.view=window.FMV.createView(engine,$('stage'),{save:()=>capture(session),confirmationScope:user.uid,cookies:()=>session.cookies+Math.max(0,(engine.state.cookiesEarned||0)-session.cookiesEarned),airport:kind=>session.travel?.airport(kind),reset:()=>view.toast('登録した牧場の進捗は、この画面からリセットできません。')});
       window.FMV.createMarket(engine,view,()=>capture(session),{getKp:()=>session.kp,purchase:id=>buyGems(session,id)});
@@ -219,7 +222,7 @@
       $('ranch-account').textContent=result.nickname; $('ranch-menu-toggle').hidden=false;
       $('ranch-play').inert=false;view.start();status('クラウドの進捗を読み込みました');capture(session);
       if(!session.saved)await flush(session);
-      session.unsubscribe=services.cloud.watch(user.uid,error=>{session.conflict=true;pause(session,error);},(kp,cookies,earned)=>{if(current(session)){session.kp=kp;if(Number.isSafeInteger(cookies)){session.cookies=cookies;session.cookiesEarned=earned;}}});
+      session.unsubscribe=services.cloud.watch(user.uid,error=>{session.conflict=true;pause(session,error);},(kp,cookies,earned,awards)=>{if(current(session)){if(awards)session.killCoinAwards=awards;session.engine.syncKillCoinAwards(session.killCoinAwards||{});session.kp=kp;if(Number.isSafeInteger(cookies)){session.cookies=cookies;session.cookiesEarned=earned;}}});
       session.timers=[setInterval(()=>capture(session),3000),setInterval(()=>{capture(session);void flush(session);},SAVE_INTERVAL_MS)];
       if(services.race&&window.kayoWeeklyRaceUI){session.race=window.kayoWeeklyRaceUI.create({uid:user.uid,view,service:services.race,isCurrent:()=>current(session)&&!session.ended,
         canOpen:()=>!session.visiting&&!session.paused&&!session.finishing&&!session.purchasing&&!session.travelBusy&&!session.raceBusy&&!$('ranch-play').inert&&!$('ranch-menu').open&&!$('sort-confirm').open&&!$('sort-btn').disabled,

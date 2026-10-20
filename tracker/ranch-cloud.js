@@ -37,7 +37,7 @@
       const saved=await sdk.getDocFromServer(saveRef(uid));
       const result=rules.snapshotResult(saved.exists()?saved.data():{});
       if(!result.ok) throw Object.assign(Error(result.message),result);
-      return {...result,nickname:profile.data().nickname,kp:rules.walletKp(profile.data()),cookies:rules.walletCookies(profile.data()),cookiesEarned:rules.cookieEarnings(result.stateJson)};
+      return {...result,nickname:profile.data().nickname,kp:rules.walletKp(profile.data()),cookies:rules.walletCookies(profile.data()),cookiesEarned:rules.cookieEarnings(result.stateJson),killCoinAwards:profile.data().kayoKillCoinAwards||{}};
     }
     async function save(uid,payload) {
       return sdk.runTransaction(db,async transaction=>{
@@ -86,7 +86,7 @@
     function watch(uid,invalid,wallet=()=>{}) {
       return sdk.onSnapshot(profileRef(uid),snapshot=>{
         if(snapshot.metadata.fromCache) return;
-        try {permit(snapshot.exists()?snapshot.data():null);wallet(rules.walletKp(snapshot.data()),rules.walletCookies(snapshot.data()),snapshot.data().kayoRanchCookiesEarned||0);} catch(error){invalid(error);}
+        try {permit(snapshot.exists()?snapshot.data():null);wallet(rules.walletKp(snapshot.data()),rules.walletCookies(snapshot.data()),snapshot.data().kayoRanchCookiesEarned||0,snapshot.data().kayoKillCoinAwards||{});} catch(error){invalid(error);}
       },invalid);
     }
     return {load,save,purchase,watch};

@@ -41,6 +41,7 @@
   const TACTICAL_PRODUCTS = new Set(Object.values(BUILDINGS).flatMap((b) => b.recipes.map((r) => `ref/products/${r.id}`)));
   const TACTICAL_CARD = /^ref\/cards\/(pic_(wheat|chicken|cow|sugarcane|carrot|goat|edamame|pig|sunflower|corn|sheep|coffee|deer|tomato)|frame_[1-3]|arrow)$/;
   const originalAssetUrl = (name) => {
+    if (name === 'kill-box') return 'assets/ui/tactical/kill-box-v1.png';
     if (/^visits\/(airport|airplane)$/.test(name)) return `assets/${name}.png?v=20261015-flat-airport`;
     const misc = name.match(/^ref\/(francine|foreman|hand|orders|coin|gem|bolt|clock|hardhat|worker|crown|lock)$/) || name.match(/^ui\/tactical\/(coin|gem|bolt|clock|worker|lock)$/);
     if (misc) return `assets/ref/tactical_${misc[1]}.png`;
@@ -74,7 +75,7 @@
     n.push('ref/cards/frame_1', 'ref/cards/frame_2', 'ref/cards/frame_3');
     Object.keys(CHAINS).forEach((k) => { if (CHAINS[k].type !== 'bonus') n.push('ref/cards/pic_' + k); });
     ['coin', 'gem', 'bolt', 'rank', 'lock', 'worker', 'clock'].forEach((x) => n.push('ui/tactical/' + x));
-    n.push('visits/airport', 'visits/airplane', 'visits/ticket', 'visits/bonus');
+    n.push('visits/airport', 'visits/airplane', 'visits/ticket', 'visits/bonus', 'kill-box');
     return n;
   }
   async function loadAssets(onProgress) {
@@ -95,6 +96,7 @@
       if (name.startsWith('ref/items/')) im.tight = true; // 切り出したままの絵: 足元が下端、幅が表示幅の2倍
       // チケットは箱程度の幅で、元の横長比率を保つ。PC・スマホで同じ表示寸法。
       if (name === 'visits/ticket') im.boardSize = { w: 72, h: 48 };
+      if (name === 'kill-box') im.boardSize = { w: 82, h: 76 };
       // 原画の解像度に依存せず、4段階とも1マス以内の幅に収める。
       const cookieStage = name.match(/^ref\/items\/cookie_([0-3])$/);
       if (cookieStage) {
@@ -123,6 +125,7 @@
   }
   const ready = (im) => !!(im && im.complete && im.naturalWidth);
   const spriteOf = (it) => {
+    if (it.t === 'killbox') return imgs['kill-box'];
     if (it.t === 'ticket') return imgs['visits/ticket'];
     if (it.t === 'card') return cardSprite(it);
     if (it.t === 'chain') return imgs[`ref/items/${it.k}_${it.tier}`];
@@ -228,6 +231,7 @@
     function showVisit(remote,trip) {
       cancelPress();hideChest();hideCard();hideRegrow();closePanel();
       discovery?.close();
+      killCoinUI?.close();
       engine=remote;visitMode={trip,targets:root.kayoRanchVisits.targets(trip.stateJson)};
       obstacleFocus=null;vis.clear();focusAirport();
     }
@@ -594,6 +598,9 @@
       return !!it && (it.k === 'toolbox' || (it.t === 'obs' && /^(tree|rock)_/.test(it.k)));
     }
 
+    function killBoxBubble(c,r) {
+      const [x,y]=tileFeet(c,r);return {x,y:y-108};
+    }
     function drawItem(it, c, r, t, o = {}) {
       const v = getVis(it.id);
       if (performance.now() < v.hideUntil) return;
@@ -606,6 +613,12 @@
       if (!o.pos) groundShadow(bx + v.ox, by, dm, v.alpha);
       if (isMax) aura(bx + v.ox, by + v.oy, size, t + v.phase);
       drawSprite(spriteOf(it), bx, by, full, { ox: v.ox, oy: v.oy + (o.liftY || 0), sx: v.sx * (o.scale || 1), sy: v.sy * (o.scale || 1), rot, alpha: v.alpha });
+      if(it.t==='killbox'&&!visitMode&&!o.pos){
+        const b=killBoxBubble(c,r);ctx.save();ctx.font='bold 18px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+        const text=it.coins.toLocaleString(),w=Math.max(68,ctx.measureText(text).width+24);
+        ctx.fillStyle='#f4e4bd';ctx.strokeStyle='#aa7e49';ctx.lineWidth=2;cutRect(b.x-w/2,b.y-18,w,36,8);ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(b.x-6,b.y+18);ctx.lineTo(b.x,b.y+26);ctx.lineTo(b.x+6,b.y+18);ctx.fill();ctx.fillStyle='#48371d';ctx.fillText(text,b.x,b.y);ctx.restore();
+      }
       if (!visitMode && isMax && !o.pos) harvestBubble(bx + v.ox, by + v.oy - Math.max(0, dm.h - 100), it, t);
       if (!visitMode && (it.t === 'obs' || it.k === 'toolbox') && it.pend && !o.pos) harvestBubble(bx + v.ox, by + v.oy - Math.max(0, dm.h - 100), it, t, imgs[`ref/items/${it.k === 'toolbox' ? 'tools' : OBSTACLES[it.k].res}_0`]);
       if (!visitMode && phase === 'withered' && !o.pos) harvestBubble(bx + v.ox, by + v.oy - Math.max(0, dm.h - 100), it, t, imgs[CHAINS[it.k].type === 'crop' ? `ref/items/${it.k}_0` : 'ref/items/coin_0']);
@@ -818,6 +831,7 @@
         ctx.beginPath(); ctx.arc(x, y, 31, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         const im = spriteOf(bubble.item);
         if (ready(im)) { const sc = 46 / Math.max(im.naturalWidth, im.naturalHeight); ctx.drawImage(im, x - im.naturalWidth * sc / 2, y - im.naturalHeight * sc / 2, im.naturalWidth * sc, im.naturalHeight * sc); }
+        if(bubble.item.t==='killbox'){ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillStyle='#f5df9d';ctx.strokeStyle='#122331';ctx.lineWidth=4;ctx.strokeText(String(bubble.item.coins),x,y+44);ctx.fillText(String(bubble.item.coins),x,y+44);}
         ctx.restore();
       });
     }
@@ -1625,6 +1639,7 @@
       if(visitBubble)return {type:'visitReward',kind:visitBubble.kind};
       if(Math.abs(wx-airport[0])<180&&Math.abs(wy-(airport[1]-45))<115)return {type:'airport'};
       if(visitMode)return null;
+      for(const [pos,it]of Object.entries(engine.state.items))if(it.t==='killbox'&&engine.isOwned(...pos.split(',').map(Number))){const [c,r]=pos.split(',').map(Number),b=killBoxBubble(c,r);if(Math.abs(wx-b.x)<48&&Math.abs(wy-b.y)<26)return {type:'cell',c,r,item:it};}
       for (const land of LANDS) {
         if (!land.building || !engine.state.lands[land.id]) continue;
         const bk = land.building.key, b = engine.state.buildings[bk];
@@ -2044,6 +2059,7 @@
         const res = engine.tap(hit.c, hit.r);
         flush();
         if (res.ok) return;
+        if(it.t==='killbox'){if(res.reason==='full')toast('空きマスがありません。');return;}
         if (res.reason === 'card') { cardFor = { c: hit.c, r: hit.r, id: it.id }; updateCard(); return; }
         if (it.t === 'obs' || it.k === 'toolbox') {
           wiggle(hit.c, hit.r);
@@ -2109,6 +2125,7 @@
     function updateHud() {
       const s = homeEngine.state, t = Date.now();
       discovery?.update();
+      killCoinUI?.update();
       const sort=homeEngine.sortInfo();
       setText('sort-badge',sort.free?'無料':'');
       $('sort-badge').hidden=!sort.free;
@@ -2248,6 +2265,11 @@
       return res;
     }
 
+    const killCoinUI = F.createKillCoinUI?.(homeEngine, {
+      canOpen: () => !visitMode && !$('ranch-play').inert && !$('ranch-menu').open && performance.now() >= sortBusyUntil,
+      save: () => hooks.save?.(), toast,
+      deploy: () => {const at=unproj(cam.x,cam.y);const result=homeEngine.deployKillBox(at);flush();return result;},
+    });
     const discovery = F.createDiscovery?.(homeEngine, {
       canOpen: () => !visitMode && !$('ranch-play').inert && !$('ranch-menu').open && performance.now() >= sortBusyUntil,
       save: () => hooks.save?.(), toast,
