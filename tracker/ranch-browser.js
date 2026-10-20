@@ -24,7 +24,7 @@
     active?.race?.stop();
     $('ranch-menu').close();
     if($('action-confirm').open)$('action-confirm').close();
-    for(const id of ['travel-picker','visit-gift','discovery-dialog','kill-coin-dialog'])if($(id)?.open)$(id).close();
+    for(const id of ['travel-picker','visit-gift','discovery-dialog','kill-coin-dialog','wednesday-dialog'])if($(id)?.open)$(id).close();
     $('ranch-gate').hidden=false;
     $('ranch-message').textContent=text;
     $('ranch-login').hidden=loggedIn;

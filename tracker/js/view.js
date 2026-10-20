@@ -232,6 +232,7 @@
       cancelPress();hideChest();hideCard();hideRegrow();closePanel();
       discovery?.close();
       killCoinUI?.close();
+      wednesdayUI?.close();
       engine=remote;visitMode={trip,targets:root.kayoRanchVisits.targets(trip.stateJson)};
       obstacleFocus=null;vis.clear();focusAirport();
     }
@@ -2146,6 +2147,7 @@
       const s = homeEngine.state, t = Date.now();
       discovery?.update();
       killCoinUI?.update();
+      wednesdayUI?.update();
       const sort=homeEngine.sortInfo();
       setText('sort-badge',sort.free?'無料':'');
       $('sort-badge').hidden=!sort.free;
@@ -2291,6 +2293,9 @@
       canOpen: () => !visitMode && !$('ranch-play').inert && !$('ranch-menu').open && performance.now() >= sortBusyUntil,
       save: () => hooks.save?.(), toast,
       deploy: () => {const at=unproj(cam.x,cam.y);const result=homeEngine.deployKillBox(at);flush();return result;},
+    });
+    const wednesdayUI = F.createWednesdayUI?.({
+      canOpen: () => !visitMode && !$('ranch-play').inert && !$('ranch-menu').open && !$('sort-confirm').open && performance.now() >= sortBusyUntil,
     });
     const discovery = F.createDiscovery?.(homeEngine, {
       canOpen: () => !visitMode && !$('ranch-play').inert && !$('ranch-menu').open && performance.now() >= sortBusyUntil,

@@ -336,6 +336,14 @@
     return null;
   };
 
+  // 曜日は端末設定によらず日本時間で判定。
+  function crateEventAt(time = Date.now()) {
+    const valid = Number.isFinite(time), shifted = time + 9 * 3600000;
+    const active = valid && new Date(shifted).getUTCDay() === 3;
+    return { active, rates: active ? [75, 18, 7] : [90.1, 9, 0.9],
+      thresholds: active ? [0.75, 0.93] : [0.901, 0.991],
+      endsAt: valid ? (Math.floor(shifted / 86400000) + 1) * 86400000 - 9 * 3600000 : null };
+  }
   const LUCKY_RATE = 0.05;
   function luckyEventAt(time = Date.now()) {
     const inactive = { active: false, multiplier: 1, rate: LUCKY_RATE, startsAt: null, endsAt: null, remaining: 0 };
@@ -351,6 +359,7 @@
   }
 
   const api = { DISCOVERY_REWARD, DISCOVERY_GROUPS, DISCOVERY_ENTRIES, discoveryId, luckyEventAt, LUCKY_RATE, TILE_W, TILE_H, MAX_TIER, MAX_ENERGY, CHAINS, INGREDIENTS, OBSTACLES, BUILDINGS, LANDS, DECOR, ROADS, CELL_LAND, key, rectCells, xpForLevel, levelUpReward, XP_GAIN, recipeReward, OBS_STEPS, OBS_STAGES, LAYOUT_CUSTOM, LAYOUT_REVISION, FORMERLY_OPEN_LANDS, SPLIT_LANDS, CHESTS, CHEST_KEYS, CHEST_LIFETIME_MS, MARKET_DEAL_SLOTS, MARKET_DEALS, MARKET_PACKS, MARKET_REFRESH_MS, MARKET_FREE_MS, MARKET_RESET_GEMS };
+  api.crateEventAt = crateEventAt;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FMV = Object.assign(root.FMV || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

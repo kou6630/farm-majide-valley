@@ -452,7 +452,8 @@
       const kinds = Object.keys(CHAINS).filter((k) => CHAINS[k].type !== 'bonus' && CHAINS[k].unlock <= s.level);
       const k = kinds[Math.floor(rng() * kinds.length)];
       const x = rng();
-      return { t: 'chain', k, tier: x < 0.901 ? 0 : x < 0.991 ? 1 : 2 };
+      const { thresholds } = D.crateEventAt(now());
+      return { t: 'chain', k, tier: x < thresholds[0] ? 0 : x < thresholds[1] ? 1 : 2 };
     }
 
     // at = 品物を出すマス(画面の中心にいちばん近い空きマス)。無ければ、空きマスからランダム
