@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#14202c">
   <title>ヨルの工場 — フィールド確認</title>
   <link rel="icon" type="image/png" href="./assets/floor-light.png">
-  <script type="module" crossorigin src="./assets/index-D_yjKt3P.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BEGZjYXh.css">
+  <script type="module" crossorigin src="./assets/index-Dxez3fpW.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Dogcb2Tr.css">
 </head>
 <body>
   <main id="app">
@@ -23,7 +23,15 @@
       </nav>
     </header>
     <div id="edit-toolbar"><p id="edit-hint" role="status" aria-live="polite" hidden></p><button id="edit-toggle" aria-pressed="false">エディットモード</button></div>
-    <footer id="field-footer"><span id="field-size"></span><span>排出口 / まな板台 1×2</span></footer>
+    <footer id="field-footer"><span id="field-size"></span><span id="outlet-summary">排出口 / まな板台 1×2</span></footer>
   </main>
+  <dialog id="source-dialog" aria-labelledby="source-title">
+    <header class="source-heading"><div><small>排出口の設定</small><h2 id="source-title">ケイオー牧場の持ち物</h2></div><button id="source-close" aria-label="閉じる">×</button></header>
+    <p class="source-note">牧場で保存済みの素材を表示します。選択だけでは所持数は減りません。</p>
+    <div class="ranch-actions"><button id="ranch-connect">Googleアカウントで連携</button><button id="ranch-refresh" disabled>持ち物を再読込</button></div>
+    <p id="ranch-identity"></p><p id="ranch-status" role="status" aria-live="polite"></p>
+    <div id="ranch-items" aria-label="牧場の所持素材"></div>
+    <footer class="source-actions"><span id="source-choice">素材を選択してください</span><button id="source-apply" disabled>この素材に設定</button></footer>
+  </dialog>
 </body>
 </html>
