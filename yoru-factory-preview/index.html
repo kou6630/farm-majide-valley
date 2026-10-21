@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#14202c">
   <title>ヨルの工場 — フィールド確認</title>
   <link rel="icon" type="image/png" href="./assets/floor-light.png">
-  <script type="module" crossorigin src="./assets/index-CctwzYSh.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-O4_lTIs7.css">
+  <script type="module" crossorigin src="./assets/index-BVJnFoul.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Uw4X2wdE.css">
 </head>
 <body>
   <main id="app">
@@ -24,11 +24,11 @@
     </header>
     <div id="held-info" hidden><img id="held-image" alt=""><span id="held-name"></span></div>
     <div id="edit-toolbar"><p id="game-status" role="status" aria-live="polite">排出口から牧場と連携して、食材を選んでください</p><p id="edit-hint" role="status" aria-live="polite" hidden></p><div class="edit-actions"><button id="item-rotate" hidden>設備を90°回転</button><button id="edit-toggle" aria-pressed="false">エディットモード</button></div></div>
-    <footer id="field-footer"><span id="field-size"></span><span id="outlet-summary">排出口 / まな板台 / 倉庫 / 注文板</span></footer>
+    <footer id="field-footer"><span id="field-size"></span><button id="outlet-summary" type="button" title="排出口の設定">排出口 / まな板台 / 倉庫 / 注文板</button></footer>
   </main>
   <dialog id="source-dialog" aria-labelledby="source-title">
     <header class="source-heading"><div><small>排出口の設定</small><h2 id="source-title">ケイオー牧場の持ち物</h2></div><button id="source-close" aria-label="閉じる">×</button></header>
-    <p class="source-note">取り出した分だけ牧場の持ち物が減ります。排出口の前が空いていると、選んだ素材が1個ずつ出ます。</p>
+    <p class="source-note">取り出した分だけ牧場の持ち物が減ります。素材は排出口の口に1個ずつ留まり、タップで持てます。</p>
     <div class="ranch-actions"><button id="ranch-connect">Googleアカウントで連携</button><button id="ranch-refresh" disabled>持ち物を再読込</button></div>
     <p id="ranch-identity"></p><p id="ranch-status" role="status" aria-live="polite"></p>
     <div id="ranch-items" aria-label="牧場の所持素材"></div>
