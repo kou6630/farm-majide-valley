@@ -1,16 +1,28 @@
-<!doctype html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10152b"><title>ヨルの工場 — 人参ライン</title><link rel="icon" type="image/png" href="./assets/carrot.png">  <script type="module" crossorigin src="./assets/index-DWELhW3e.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BMoPGJ5U.css">
-</head><body>
-<main id="app">
-  <header class="topbar"><a class="wordmark" href="./"><img src="./assets/yoru.png" alt="ヨル"><div><small>YORU'S FACTORY</small><h1>ヨルの工場<span>人参ライン</span></h1></div></a><div class="wallet"><span class="coin-icon">●</span><b id="money">0</b><small>工場コイン</small></div><button id="menu-open" class="icon-button" aria-label="メニュー">☰</button></header>
-  <div class="preview-strip"><span class="live-dot"></span>人参版・おためし工場<span class="preview-detail">牧場の実在庫は使いません</span></div>
-  <section id="playfield" aria-label="4方向に回転できる工場"><div id="game"></div><div class="room-label"><span class="live-dot"></span>第一工場 <small>01 / CARROT LINE</small></div><div class="camera-tools"><button id="rotate-left" aria-label="視点を左へ回転">↶</button><span id="direction">南東</span><button id="rotate-right" aria-label="視点を右へ回転">↷</button><button id="zoom-out" aria-label="縮小">−</button><button id="zoom-in" aria-label="拡大">＋</button></div><div id="selection" class="selection hidden"></div><div id="carry" class="carry hidden"><img id="carry-img" alt=""><span id="carry-name"></span><button id="carry-cancel">元に戻す</button></div><div id="work-hint" class="work-hint hidden"><span>まな板を長押ししてカット</span><progress id="work-progress" max="1800" value="0"></progress></div><div id="toast" role="status" aria-live="polite"></div></section>
-  <aside id="order-card" class="order-card"><img class="rabbit" src="./assets/rabbit.png" alt="注文主のウサギ"><div class="order-copy"><small>オーダー掲示板 <span id="order-number">#001</span></small><h2 id="order-title">ウサギの餌が欲しい！</h2><p><img src="./assets/cut-carrot.png" alt="カット人参"><span>カット人参</span><b id="order-count">0 / 3</b></p></div><div class="order-action"><span class="reward">● <b id="order-reward">60</b></span><button id="deliver">納品する</button></div></aside>
-  <nav class="bottom-nav" aria-label="工場メニュー"><button id="outlet-open"><img src="./assets/outlet-0.png" alt=""><span>排出口設定</span></button><button id="build-open"><img src="./assets/belt.png" alt=""><span>設備を置く</span></button><button id="warehouse-open"><img src="./assets/inlet-0.png" alt=""><span>工場倉庫 <b id="warehouse-count">0</b></span></button><button id="guide-open"><span class="guide-icon">?</span><span>遊び方</span></button></nav>
-  <footer><span id="save-state">この端末に保存</span><span>試作版 v0.1 · ドット工場</span></footer>
-</main>
-<dialog id="outlet-dialog"><div class="dialog-heading"><div><small>INPUT / STOCK CONTROL</small><h2>排出口の設定</h2></div><button data-close="outlet-dialog" aria-label="閉じる">×</button></div><div class="setting-art"><img src="./assets/outlet-0.png" alt="排出口"><span>→</span><img src="./assets/carrot.png" alt="人参"><span>→</span><img src="./assets/cut-carrot.png" alt="カット人参"></div><label>排出する食材<select id="source-kind"><option value="carrot">人参</option></select></label><label>停止の基準にする加工品<select id="source-target"><option value="cutCarrot">カット人参</option></select></label><label>工場倉庫の最大在庫数<input id="stock-limit" type="number" min="1" max="100" value="10" inputmode="numeric"></label><p class="note">倉庫のカット人参が上限に達すると停止します。納品して在庫が減ると再開。出口が詰まった時も食材を消費しません。</p><p class="stock-row">確認用の牧場在庫 <strong><span id="farm-count">120</span> 個</strong></p><button id="source-toggle" class="primary">排出を再開</button><button id="source-apply" class="secondary">設定を保存</button></dialog>
-<dialog id="build-dialog"><div class="dialog-heading"><div><small>BUILD / AUTOMATE</small><h2>設備を置く</h2></div><button data-close="build-dialog" aria-label="閉じる">×</button></div><p class="note">設備を選び、空いているマスをタップ。向きは「向き変更」で変えられます。移動・撤去は無料です。</p><div id="catalog" class="catalog"></div><button id="edit-mode" class="secondary">設備の移動・向き変更・撤去</button></dialog>
-<dialog id="warehouse-dialog"><div class="dialog-heading"><div><small>WAREHOUSE</small><h2>工場倉庫</h2></div><button data-close="warehouse-dialog" aria-label="閉じる">×</button></div><div class="warehouse-item"><img src="./assets/cut-carrot.png" alt="カット人参"><span>カット人参</span><b id="warehouse-total">0</b></div><p class="note">加工品はここに保管されます。必要数をそろえて、掲示板の「納品する」を押しましょう。</p><p class="note">未加工の人参を収納口に入れると、確認用の牧場在庫へ返ります。</p></dialog>
-<dialog id="guide-dialog"><div class="dialog-heading"><div><small>FIRST SHIFT</small><h2>最初の工場の動かし方</h2></div><button data-close="guide-dialog" aria-label="閉じる">×</button></div><ol class="guide-steps"><li><b>排出口を再開</b><span>壁の排出口をタップし、人参を出す。</span></li><li><b>人参をまな板へ</b><span>人参をタップして持ち、まな板台に置く。</span></li><li><b>長押しでカット</b><span>まな板台を長押し。離すと作業を中断できる。</span></li><li><b>収納口へ運ぶ</b><span>完成した人参をタップして持ち、緑の収納口に置く。</span></li><li><b>掲示板から納品</b><span>3個集めて初注文へ。報酬でベルトや自動機を購入！</span></li></ol><p class="note">自動設備は閉じている間も稼働します。手動のまな板台は長押ししている間だけ進みます。</p><button data-close="guide-dialog" class="primary">工場へ戻る</button></dialog>
-<dialog id="menu-dialog"><div class="dialog-heading"><h2>メニュー</h2><button data-close="menu-dialog" aria-label="閉じる">×</button></div><p class="note">確認版はこの端末のブラウザに保存します。牧場の実在庫は変更しません。専用Firebaseの本接続は別途準備します。</p><p id="offline-summary" class="note"></p><button id="save-now" class="primary">保存する</button><button id="export-save" class="secondary">セーブをダウンロード</button></dialog></body></html>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#14202c">
+  <title>ヨルの工場 — フィールド確認</title>
+  <link rel="icon" type="image/png" href="./assets/floor-light.png">
+  <script type="module" crossorigin src="./assets/index-DoX0HtOR.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BqubMRDz.css">
+</head>
+<body>
+  <main id="app">
+    <section id="playfield" aria-label="工場フィールド"><div id="game"></div></section>
+    <header id="field-header">
+      <div class="title"><small>YORU'S FACTORY</small><h1>ヨルの工場</h1></div>
+      <nav class="camera-tools" aria-label="視点の操作">
+        <button id="rotate-left" aria-label="左へ90度回転">↶<small>90°</small></button>
+        <span id="direction" role="status" aria-live="polite">0° · 北の壁</span>
+        <button id="rotate-right" aria-label="右へ90度回転">↷<small>90°</small></button>
+        <button id="zoom-out" class="zoom-start" aria-label="縮小">−</button>
+        <button id="zoom-in" aria-label="拡大">＋</button>
+      </nav>
+    </header>
+    <footer id="field-footer"><span id="field-size"></span><span>フィールド確認</span></footer>
+  </main>
+</body>
+</html>
