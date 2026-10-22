@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#14202c">
   <title>ヨルの工場 — フィールド確認</title>
   <link rel="icon" type="image/png" href="./assets/floor-light.png">
-  <script type="module" crossorigin src="./assets/index-BB0b6nbC.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-Dxzz-s1t.css">
+  <script type="module" crossorigin src="./assets/index-BVmchsaa.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-d6cUvIGi.css">
 </head>
 <body>
   <main id="app">
@@ -48,6 +48,7 @@
     <div id="levelup-confetti" aria-hidden="true"></div><div class="levelup-rays" aria-hidden="true"></div>
     <div class="levelup-content"><img class="levelup-star" src="./assets/factory-xp.png" alt=""><h2 id="levelup-title">レベルアップ！</h2><p class="levelup-level">Lv.<strong id="levelup-number">2</strong></p>
       <div id="levelup-unlock"><img src="./assets/belt-lv1.png" alt="ベルトコンベアLv1"><div><strong>ベルトコンベアLv1</strong><small>ショップで購入できるようになりました</small></div></div>
+      <div id="levelup-cutter-unlock" class="levelup-equipment"><img src="./assets/cutter-lv1.png" alt="自動切断機Lv1"><div><strong>自動切断機Lv1</strong><small>ショップで購入できるようになりました</small></div></div>
       <button id="levelup-continue" type="button">続ける</button>
     </div>
   </dialog>
@@ -56,6 +57,9 @@
     <article class="belt-product"><img src="./assets/belt-lv1.png" alt="ベルトコンベアLv1"><div><h3>ベルトコンベアLv1</h3><p>1マスを3秒で運搬・1×1マス</p><p id="shop-level-lock">レベル2で解放</p><p id="shop-stock"></p></div></article>
     <button id="belt-buy" type="button"><img src="./assets/factory-coin.png" alt="工場コイン">100で購入して設置</button>
     <button id="belt-install" type="button" hidden>持っているコンベアを設置</button>
+    <article class="belt-product"><img src="./assets/cutter-lv1.png" alt="自動切断機Lv1"><div><h3>自動切断機Lv1</h3><p>ニンジン1個を3秒でカット・1×1マス</p><p>電力不要・矢印の方向へ自動搬出</p><p id="cutter-stock"></p></div></article>
+    <button id="cutter-buy" class="equipment-buy" type="button"><img src="./assets/factory-coin.png" alt="工場コイン">180で購入して設置</button>
+    <button id="cutter-install" class="equipment-install" type="button" hidden>持っている切断機を設置</button>
   </dialog>
 </body>
 </html>
