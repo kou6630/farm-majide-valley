@@ -6,14 +6,18 @@
   <meta name="theme-color" content="#14202c">
   <title>ヨルの工場 — フィールド確認</title>
   <link rel="icon" type="image/png" href="./assets/floor-light.png">
-  <script type="module" crossorigin src="./assets/index-Bgg6n5O-.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-Uw4X2wdE.css">
+  <script type="module" crossorigin src="./assets/index-CS-Gozur.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-B87PWM8T.css">
 </head>
 <body>
   <main id="app">
     <section id="playfield" aria-label="工場フィールド"><div id="game"></div></section>
     <header id="field-header">
       <div class="title"><small>YORU'S FACTORY</small><h1>ヨルの工場</h1></div>
+      <div id="factory-stats" aria-label="工場の所持コインとレベル">
+        <div class="factory-stat factory-money"><img src="./assets/factory-coin.png" alt="工場コイン"><strong id="factory-money">0</strong></div>
+        <div class="factory-stat factory-experience"><img src="./assets/factory-xp.png" alt="経験値"><div class="experience-body"><div class="experience-label"><strong id="factory-level">Lv.1</strong><small id="factory-xp">0 / 100</small></div><progress id="factory-xp-bar" max="100" value="0" aria-label="次のレベルまでの経験値"></progress></div></div>
+      </div>
       <nav class="camera-tools" aria-label="視点の操作">
         <button id="rotate-left" aria-label="左へ90度回転">↶<small>90°</small></button>
         <span id="direction" role="status" aria-live="polite">0° · 北の壁</span>
