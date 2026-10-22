@@ -83,13 +83,25 @@
         return plan;
       });
     }
+    async function reconcileFactory(uid,payload){
+      const remote=await load(uid),gap=remote.version-payload.baseVersion;
+      if(!/^factory(?:return)?_[a-f0-9]{32}$/.test(remote.saveId)||gap<1||gap>1000)return null;
+      const lists=await Promise.all([['factoryTransfers','import'],['factoryReturns','return']].map(async([table,direction])=>{
+        const result=await sdk.getDocs(sdk.query(sdk.collection(db,'googleUsers',uid,table),sdk.where('version','>',payload.baseVersion),sdk.where('version','<=',remote.version),sdk.limit(gap+1)));
+        return result.docs.map(doc=>({...doc.data(),id:doc.id,direction}));
+      }));
+      // Every intervening version must have an immutable transfer receipt. A
+      // genuine ranch save from another device leaves a gap and stays blocked.
+      const merged=rules.reconcileFactoryInventory(payload.stateJson,payload.baseVersion,remote,lists.flat());
+      return merged?{...remote,...merged}:null;
+    }
     function watch(uid,invalid,wallet=()=>{}) {
       return sdk.onSnapshot(profileRef(uid),snapshot=>{
         if(snapshot.metadata.fromCache) return;
         try {permit(snapshot.exists()?snapshot.data():null);wallet(rules.walletKp(snapshot.data()),rules.walletCookies(snapshot.data()),snapshot.data().kayoRanchCookiesEarned||0,snapshot.data().kayoKillCoinAwards||{});} catch(error){invalid(error);}
       },invalid);
     }
-    return {load,save,purchase,watch};
+    return {load,save,purchase,watch,reconcileFactory};
   }
   return {create};
 });

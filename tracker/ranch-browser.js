@@ -92,14 +92,37 @@
     $('ranch-play').inert=true;
     gate(message(error),true);
   }
+  async function reconcileFactory(session,payload){
+    if(!services.cloud.reconcileFactory)return false;
+    const frozenAt=session.frozenAt,inert=$('ranch-play').inert;
+    session.frozenAt??=Date.now();$('ranch-play').inert=true;
+    try{
+      capture(session);
+      const result=await services.cloud.reconcileFactory(session.uid,{baseVersion:payload.baseVersion,stateJson:session.latest||payload.stateJson});
+      if(!result||!current(session))return false;
+      const snapshot=JSON.parse(result.stateJson);
+      if(session.engine)session.engine.state.inv=JSON.parse(snapshot.gameJson).inv;
+      const latest=session.engine?rules.normalizeSnapshot(JSON.stringify({schemaVersion:1,gameJson:session.engine.serialize(),tutorial:snapshot.tutorial})):result.stateJson;
+      session.saved=result.cloudStateJson;session.savedKey=rules.progressKey(session.saved);session.version=result.version;
+      session.pending=null;session.attempted=false;session.latest=latest;
+      // Persist a fresh, rebased operation before retrying. Lost responses keep
+      // the exact rebased payload, so neither stock changes nor rewards repeat.
+      queue(session,latest);
+      if(!session.pending)try{localStorage.removeItem(prefix+session.uid);}catch{}
+      status('ヨルの工場と食材を同期しました');return true;
+    }finally{
+      if(current(session)&&!session.conflict&&!session.ended){session.frozenAt=frozenAt;$('ranch-play').inert=inert;}
+    }
+  }
   async function flush(session){
     if(!current(session) || session.conflict || session.ended)return false;
     if(session.flight)return session.flight;
     if(!session.pending)return true;
-    const payload=session.pending;
-    session.attempted=true;
-    status('保存中…'); persist(session);
     session.flight=(async()=>{
+      for(let attempt=0;attempt<3;attempt++){
+      if(!session.pending)return true;
+      const payload=session.pending;
+      session.attempted=true;status('保存中…');persist(session);
       try {
         const result=await services.cloud.save(session.uid,payload);
         if(!current(session))return false;
@@ -111,14 +134,29 @@
         return true;
       } catch(error){
         if(!current(session))return false;
+        if(error.code==='ranch-conflict'&&attempt<2){
+          try{if(await reconcileFactory(session,payload))continue;}catch(syncError){error=syncError;}
+        }
         persist(session);
         if(['ranch-conflict','ranch-locked','onboarding-required','account-blocked','permission-denied'].includes(error.code)){
           session.conflict=true; pause(session,error);
         } else {status('未保存の進捗を保持しています');$('ranch-retry').hidden=false;}
         return false;
       }
+      }
+      return false;
     })();
     const result=await session.flight;session.flight=null;return result;
+  }
+  async function syncFactoryOnReturn(session){
+    if(!current(session)||session.ended||session.conflict||session.paused||session.flight||session.finishing||session.purchasing||session.travelBusy||session.raceBusy||session.visiting)return;
+    capture(session);
+    if(session.pending){await flush(session);return;}
+    session.flight=reconcileFactory(session,{baseVersion:session.version});
+    try{await session.flight;}
+    catch(error){status(message(error));}
+    finally{session.flight=null;}
+    if(session.pending)await flush(session);
   }
   async function changed(user){
     generation++;
@@ -405,7 +443,11 @@
     };
     services.observe(user=>void changed(user));
     window.addEventListener('pointerup',()=>{if(active)setTimeout(()=>capture(active),0);});
-    document.addEventListener('visibilitychange',()=>{if(document.hidden && active){capture(active);persist(active);}});
+    document.addEventListener('visibilitychange',()=>{
+      if(!active)return;
+      if(document.hidden){capture(active);persist(active);}
+      else void syncFactoryOnReturn(active);
+    });
     window.addEventListener('pagehide',()=>{if(active){capture(active);persist(active);}});
   }
   function fail(error){

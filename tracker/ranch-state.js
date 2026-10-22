@@ -87,5 +87,33 @@
     delete game.lastEnergyAt;delete game.lastCrateAt;
     return JSON.stringify({schemaVersion:value.schemaVersion,game,tutorial:value.tutorial});
   }
-  return {MAX_BYTES,GEM_PACKS,walletKp,walletCookies,cookieEarnings,planPurchase,normalizeSnapshot,access,snapshotResult,planSave,progressKey};
+  function reconcileFactoryInventory(localJson,baseVersion,remote,receipts){
+    const normalized=normalizeSnapshot(localJson),gap=remote.version-baseVersion;
+    if(!normalized||!Number.isSafeInteger(baseVersion)||baseVersion<1||!Number.isSafeInteger(gap)||gap<1||gap>1000||receipts.length!==gap)return null;
+    const raw=new Set(['wheat','egg','milk','carrot','goatmilk','corn','tomato','sunflower','edamame','sugarcane','coffee','bacon','wool','hide']);
+    const sorted=[...receipts].sort((a,b)=>a.version-b.version),delta={};
+    for(let i=0;i<sorted.length;i++){
+      const r=sorted[i],returned=r.direction==='return';
+      if(r.version!==baseVersion+i+1||r.baseVersion!==r.version-1||r.count!==1||!raw.has(r.ingredient)
+        ||!(returned?/^factoryreturn_[a-f0-9]{32}$/:/^factory_[a-f0-9]{32}$/).test(r.id)
+        ||(!returned&&(r.direction!=='import'||!['debited','imported'].includes(r.status))))return null;
+      delta[r.ingredient]=(delta[r.ingredient]||0)+(returned?1:-1);
+    }
+    if(sorted[sorted.length-1].id!==remote.saveId)return null;
+    const value=JSON.parse(normalized),game=JSON.parse(value.gameJson);
+    if(game.inv===undefined){
+      game.inv={};
+      for(const building of Object.values(game.buildings||{}))for(const [kind,count]of Object.entries(building.stock||{}))game.inv[kind]=(game.inv[kind]||0)+count;
+    }
+    if(!game.inv||typeof game.inv!=='object'||Array.isArray(game.inv))return null;
+    for(const [kind,change]of Object.entries(delta)){
+      const count=game.inv[kind]??0,next=count+change;
+      if(!Number.isSafeInteger(count)||!Number.isSafeInteger(next)||next<0||next>1e12)return null;
+      game.inv[kind]=next;
+    }
+    value.gameJson=JSON.stringify(game);
+    const stateJson=normalizeSnapshot(JSON.stringify(value));
+    return stateJson?{stateJson,cloudStateJson:remote.stateJson,version:remote.version}:null;
+  }
+  return {MAX_BYTES,GEM_PACKS,walletKp,walletCookies,cookieEarnings,planPurchase,normalizeSnapshot,access,snapshotResult,planSave,progressKey,reconcileFactoryInventory};
 });
