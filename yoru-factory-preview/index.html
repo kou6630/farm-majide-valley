@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#14202c">
   <title>ヨルの工場 — フィールド確認</title>
   <link rel="icon" type="image/png" href="./assets/floor-light.png">
-  <script type="module" crossorigin src="./assets/index-sf0gMngO.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-ChvjsyDU.css">
+  <script type="module" crossorigin src="./assets/index-BKpwEj0Y.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-WmYwXkxF.css">
 </head>
 <body>
   <main id="app">
@@ -33,7 +33,7 @@
   </main>
   <dialog id="source-dialog" aria-labelledby="source-title">
     <header class="source-heading"><div><small>排出口の設定</small><h2 id="source-title">ケイオー牧場の持ち物</h2></div><button id="source-close" aria-label="閉じる">×</button></header>
-    <p class="source-note">取り出した分だけ牧場の持ち物が減ります。素材は排出口の口に1個ずつ留まり、タップで持てます。</p>
+    <p class="source-note">取り出した分だけ牧場の持ち物が減ります。口の手前にベルトを置くと自動で運びます。ベルトがない時や詰まっている時は、口に留まります。</p>
     <div class="ranch-actions"><button id="ranch-connect">Googleアカウントで連携</button><button id="ranch-refresh" disabled>持ち物を再読込</button></div>
     <p id="ranch-identity"></p><p id="ranch-status" role="status" aria-live="polite"></p>
     <div id="ranch-items" aria-label="牧場の所持素材"></div>
@@ -44,6 +44,13 @@
     <header class="source-heading"><div><small id="facility-label"></small><h2 id="facility-title"></h2></div><button id="facility-close" aria-label="閉じる">×</button></header>
     <section id="warehouse-panel" hidden></section>
     <section id="orders-panel" hidden><div id="order-slots" aria-label="注文一覧"></div><div id="order-details" hidden></div></section>
+  </dialog>
+  <dialog id="factory-levelup" aria-labelledby="levelup-title">
+    <div id="levelup-confetti" aria-hidden="true"></div><div class="levelup-rays" aria-hidden="true"></div>
+    <div class="levelup-content"><img class="levelup-star" src="./assets/factory-xp.png" alt=""><h2 id="levelup-title">レベルアップ！</h2><p class="levelup-level">Lv.<strong id="levelup-number">2</strong></p>
+      <div id="levelup-unlock"><img src="./assets/belt-lv1.png" alt="ベルトコンベアLv1"><div><strong>ベルトコンベアLv1</strong><small>ショップで購入できるようになりました</small></div></div>
+      <button id="levelup-continue" type="button">続ける</button>
+    </div>
   </dialog>
   <dialog id="shop-dialog" aria-labelledby="shop-title">
     <header class="source-heading"><div><small>工場の設備</small><h2 id="shop-title">ショップ</h2></div><button id="shop-close" aria-label="閉じる">×</button></header>
