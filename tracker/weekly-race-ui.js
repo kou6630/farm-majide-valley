@@ -14,6 +14,7 @@
    $('weekly-race-deadline').textContent='月曜日\n9:00〜9:30\n19:00〜19:30\n23:30〜23:59';
    $('weekly-race-dialog-time').hidden=true;
    $('weekly-race-action').hidden=true;
+   $('weekly-race-rewatch').hidden=true;
   }
   function paint(){
    if(!isCurrent()||stopped)return;
@@ -44,6 +45,8 @@
    for(const p of [...records].sort((a,b)=>a.rank-b.rank)){const row=document.createElement('li'),rank=document.createElement('b'),dot=document.createElement('span'),name=document.createElement('span');rank.textContent=p.rank+'位';dot.className='race-marble';dot.style.setProperty('--marble',p.color);name.textContent=p.name;row.append(rank,dot,name);row.classList.toggle('race-self',p.id===uid);list.append(row);}
    $('weekly-race-action').hidden=false;$('weekly-race-action').textContent=state.claimed?'受取済み':'報酬を受け取る';$('weekly-race-action').disabled=busy||state.claimed||W.period(now()).phase!=='results';
    $('weekly-race-action').onclick=()=>act(async()=>{await operate({raceId:result.raceId});state.claimed=true;await refresh(true);showResults();view.toast('レースの報酬を受け取りました');});paint();
+   const rewatch=$('weekly-race-rewatch');rewatch.hidden=false;rewatch.disabled=busy||W.period(now()).phase!=='results';
+   rewatch.onclick=()=>act(async()=>{play();});
   }
   function play(){
    dialog.classList.add('race-film');dialog.dataset.playing='true';$('weekly-race-panel').hidden=true;$('weekly-race-close').hidden=true;
@@ -53,6 +56,7 @@
   async function act(task){if(busy)return;busy=true;$('weekly-race-action').disabled=true;$('weekly-race-error').textContent='';try{await task();}catch(e){if(!isCurrent())return;$('weekly-race-error').textContent=e.message||'通信を確認して、もう一度お試しください。';if(e.code==='race-expired')paint();}finally{busy=false;if(isCurrent()&&!iframe)show();}}
   function show(){
    if(!isCurrent()||stopped)return;
+   $('weekly-race-rewatch').hidden=true;
    if(dialogMode==='lucky'){$('weekly-race-rewards').replaceChildren();$('weekly-race-ranks').replaceChildren();paintLuckyDialog();return;}
    dialog.dataset.event='race';
    $('weekly-race-eyebrow').hidden=false;$('weekly-race-copy').hidden=false;$('weekly-race-dialog-time').hidden=false;
@@ -66,7 +70,7 @@
    }else if(p.phase==='results'){
     $('weekly-race-copy').textContent=state.entered?(state.ready?'3位が決まるまでの映像のあと、全員の順位と自分の報酬を表示します。':'結果の映像を準備しています。混雑時は公開まで少し時間がかかります。'):'今週はエントリーしていません。次の土曜日にエントリーしてください。';
     $('weekly-race-action').hidden=!state.entered;$('weekly-race-action').textContent='結果を見る';$('weekly-race-action').disabled=busy||!state.ready;
-    $('weekly-race-action').onclick=()=>act(async()=>{result=await service.results();if(!isCurrent())return;state.claimed=result.claimed;if(state.claimed){seen=true;showResults();}else play();});
+    $('weekly-race-action').onclick=()=>act(async()=>{result=await service.results();if(!isCurrent())return;state.claimed=result.claimed;seen=false;play();});
    }else{$('weekly-race-copy').textContent='今週の受取期限は終了しました。次の土曜日にエントリーしてください。';$('weekly-race-action').hidden=true;}
    paint();
   }
