@@ -385,22 +385,10 @@
       });
       return { spawned, bubbles };
     }
-    // 報酬は開けた場所につながる畑へ。遠く離れた開始済みの土地へ飛ばさない。
+    // 解放済みの全区画から表示上の近い空きマスへ。隣接区画だけで
+    // 満杯と判定せず、盤面全体に空きがない分だけを泡へ保管する。
     function nearestRewardFree(c, r, n) {
-      const cells = ownedCells(), own = new Set(cells.map(([x, y]) => key(x, y)));
-      if (!cells.length) return [];
-      const start = own.has(key(c, r)) ? [c, r] : cells.reduce((a, b) => Math.abs(b[0] - c) + Math.abs(b[1] - r) < Math.abs(a[0] - c) + Math.abs(a[1] - r) ? b : a);
-      const queue = [start], seen = new Set([key(...start)]);
-      while (queue.length) {
-        const [x, y] = queue.pop();
-        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
-          const pos = key(x + dx, y + dy);
-          if (own.has(pos) && !seen.has(pos)) { seen.add(pos); queue.push([x + dx, y + dy]); }
-        });
-      }
-      return cells.filter(([x, y]) => seen.has(key(x, y)) && !getItem(x, y))
-        .map(([x, y]) => ({ x, y, d: Math.abs(x - c) + Math.abs(y - r) + rng() * 0.5 }))
-        .sort((a, b) => a.d - b.d).slice(0, n).map(({ x, y }) => [x, y]);
+      return nearestFree(c, r, n, true);
     }
     function claimRewardBubble(id) {
       const bubble = s.rewardBubbles.find((b) => b.id === id);
@@ -969,25 +957,33 @@
       const it = getItem(c, r);
       const ob = it.k === 'toolbox' ? { res: 'tools', xp: [4, 9, 27][it.tier] } : OBSTACLES[it.k], step = it.pend - 1, last = it.pend >= stepsOf(it), w = { c, r };
       // このステップの素材
-      const drops = [];
+      const drops = [], bubbles = [];
       let coins = 0;
       const want = [];
       OBS_STAGES[step].drop.forEach(([tier, n]) => { for (let i = 0; i < n; i++) want.push(Math.min(tier, CHAINS[ob.res].count - 1)); });
-      const spots = nearestFree(w.c, w.r, want.length, it.k === 'toolbox');
-      // 素材をすべて置けるまで回収待ちを維持する。工具も泡には入れない。
-      if (spots.length < want.length) return { ok: false, reason: 'full' };
+      if (it.k === 'toolbox') {
+        // 最後の回収では消える工具箱自身のマスも使える。
+        if (last) delete s.items[key(w.c, w.r)];
+        const delivered = placeRewards(w.c, w.r, want.map(tier => ({ t: 'chain', k: ob.res, tier })));
+        drops.push(...delivered.spawned.map(drop => ({ ...drop, item: { ...drop.item } })));
+        bubbles.push(...delivered.bubbles);
+      } else {
+        const spots = nearestFree(w.c, w.r, want.length);
+        if (spots.length < want.length) return { ok: false, reason: 'full' };
+        want.forEach((tier, i) => {
+          const g = putItem(spots[i][0], spots[i][1], { t: 'chain', k: ob.res, tier });
+          drops.push({ c: spots[i][0], r: spots[i][1], item: Object.assign({}, g) });
+        });
+      }
       delete it.pend;
-      want.forEach((tier, i) => {
-        if (spots[i]) { const g = putItem(spots[i][0], spots[i][1], { t: 'chain', k: ob.res, tier }); drops.push({ c: spots[i][0], r: spots[i][1], item: Object.assign({}, g) }); }
-      });
       s.coins += coins;
       if (last) {
-        delete s.items[key(w.c, w.r)];
-        emit('cleared', { c: w.c, r: w.r, item: it, coins, drops });
+        if (it.k !== 'toolbox') delete s.items[key(w.c, w.r)];
+        emit('cleared', { c: w.c, r: w.r, item: it, coins, drops, bubbles });
         addXp(ob.xp);
       } else {
         it.step = step + 1;
-        emit('stageDone', { c: w.c, r: w.r, item: Object.assign({}, it), coins, drops, step: step + 1, of: stepsOf(it) });
+        emit('stageDone', { c: w.c, r: w.r, item: Object.assign({}, it), coins, drops, bubbles, step: step + 1, of: stepsOf(it) });
       }
       return { ok: true, claimed: true };
     }
