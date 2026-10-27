@@ -159,7 +159,7 @@
     function placeObstacles(r) {
       LANDS.forEach((land) => {
         if (land.items) {   // 地図に置いた品物・障害物(雲の下のものも)
-          Object.keys(land.items).forEach((k) => { const [c, rr] = k.split(',').map(Number), it = land.items[k]; putItem(c, rr, it.t === 'obs' ? { t: 'obs', k: it.k, tier: 0 } : { t: 'chain', k: it.k, tier: it.tier }); });
+          Object.keys(land.items).forEach((k) => { const [c, rr] = k.split(',').map(Number), it = land.items[k]; putItem(c, rr, it.t === 'obs' ? { t: 'obs', k: it.k, tier: 0, mapPlaced: true } : { t: 'chain', k: it.k, tier: it.tier }); });
           return;
         }
         if (!land.obstacles) return;
@@ -170,7 +170,7 @@
         }
         land.obstacles.forEach((ok, idx) => {
           const [c, rr] = cells[idx];
-          putItem(c, rr, { t: 'obs', k: ok, tier: 0 });
+          putItem(c, rr, { t: 'obs', k: ok, tier: 0, mapPlaced: true });
         });
       });
     }
@@ -848,10 +848,15 @@
     }
 
     // ドラッグ移動。置き先の品物は近くの空きマスへ寄せ、建物なら食材を渡す。
+    function canMoveItem(c, r) {
+      const it = getItem(c, r);
+      return !!it && isOwned(c, r) && it.k !== 'woodbox'
+        && (it.t !== 'obs' || it.marketPurchased === true && it.mapPlaced !== true && /^(tree|rock)_/.test(it.k));
+    }
     function move(from, to) {
       const [fc, fr] = from;
       const it = getItem(fc, fr);
-      if (!it || it.t === 'obs' || it.k === 'woodbox' || !isOwned(fc, fr)) return { ok: false, reason: 'cantmove' };
+      if (!canMoveItem(fc, fr)) return { ok: false, reason: 'cantmove' };
       if (fc === to[0] && fr === to[1]) return { ok: true, same: true };
 
       const bk = buildingAt(to[0], to[1]);
@@ -864,9 +869,7 @@
         [tc, tr] = nearby;
       }
       const other = getItem(tc, tr);
-      if (it.k === 'toolbox' && (it.pend || s.jobs.some((j) => j.c === fc && j.r === fr))) return { ok: false, reason: 'busy' };
-      if (other && other.k === 'toolbox' && (other.pend || s.jobs.some((j) => j.c === tc && j.r === tr))) return { ok: false, reason: 'busy' };
-      if (other && (other.t === 'obs' || other.k === 'woodbox')) return { ok: false, reason: 'blocked' };
+      if (other && !canMoveItem(tc, tr)) return { ok: false, reason: 'blocked' };
 
       // 同じ品物の上に重ねたら合体(横に置いただけでは合体しない)
       if (other && mergeable(it) && sameKind(it, other)) {
@@ -876,9 +879,15 @@
 
       // 満杯なら、持ってきた品物の元のマスへ置き先の品物を戻して入れ替える。
       const nearby = other && (nearestFree(tc, tr, 1)[0] || [fc, fr]);
+      // 移動前の仕事を先に両方確保する。満杯で入れ替える場合も、
+      // 移動済み座標の仕事をもう一方の仕事と取り違えない。
+      const jobs = s.jobs.filter(j => !j.rewardBubbleId && j.c === fc && j.r === fr);
+      const displacedJobs = other ? s.jobs.filter(j => !j.rewardBubbleId && j.c === tc && j.r === tr) : [];
       delete s.items[key(fc, fr)];
       if (other) s.items[key(...nearby)] = other;
       s.items[key(tc, tr)] = it;
+      jobs.forEach(j => { j.c = tc; j.r = tr; });
+      displacedJobs.forEach(j => { j.c = nearby[0]; j.r = nearby[1]; });
       emit('move', { from: [fc, fr], to: [tc, tr], displaced: other ? { from: [tc, tr], to: nearby, item: Object.assign({}, other) } : null });
       return { ok: true, merged: false };
     }
@@ -1228,7 +1237,8 @@
       if (deal) {
         m.bought[id] = (m.bought[id] || 0) + 1;
         const origin = ownedCells()[0] || [0, 0];
-        delivered = placeRewards(...origin, Array.from({ length: p.n }, () => ({ ...p.item })));
+        delivered = placeRewards(...origin, Array.from({ length: p.n }, () => ({ ...p.item,
+          ...(p.item.t === 'obs' && /^(tree|rock)_/.test(p.item.k) ? { marketPurchased: true } : {}) })));
         emit('rewardClaimed', { c: origin[0], r: origin[1], ...delivered });
       } else {
         s[p.kind] += p.n;
@@ -1271,11 +1281,32 @@
         }
         Object.keys(BUILDINGS).forEach((k) => { if (!s.buildings[k]) s.buildings[k] = { job: null, repaired: !BUILDINGS[k].repair, paid: {} }; else { if (s.buildings[k].repaired === undefined) s.buildings[k].repaired = true; if (!s.buildings[k].paid) s.buildings[k].paid = {}; } });
         migrateShopClouds();
+        migrateMarketObstacles();
         migrateCards();
         syncDiscoveries();
         tick();
         return true;
       } catch (e) { return false; }
+    }
+
+    function migrateMarketObstacles() {
+      // 旧セーブには購入元が無い。初期配置のIDと元の位置で初期障害物を
+      // 保護し、それ以外の木・岩だけ購入品として引き継ぐ。
+      const initial = new Map(), positions = new Map(); let id = 1;
+      for (const land of LANDS) {
+        const definitions = land.items ? Object.entries(land.items) : (land.obstacles || []).map(k => [null, { t: 'obs', k }]);
+        for (const [pos, definition] of definitions) {
+          if (definition.t === 'obs') { initial.set(id, definition.k); if (pos) positions.set(pos, definition.k); }
+          id++;
+        }
+      }
+      const mark = (item, pos) => {
+        if (item.t !== 'obs' || !/^(tree|rock)_/.test(item.k) || item.marketPurchased !== undefined || item.mapPlaced !== undefined) return;
+        if (initial.get(item.id) === item.k || positions.get(pos) === item.k) item.mapPlaced = true;
+        else item.marketPurchased = true;
+      };
+      Object.entries(s.items).forEach(([pos, item]) => mark(item, pos));
+      s.rewardBubbles.forEach(b => mark(b.item, key(b.c, b.r)));
     }
 
     // 土地の分割・雲の変更を引き継ぐ。購入済み・作業中・回収済みの進行を保護する。
@@ -1299,7 +1330,7 @@
         if (s.lands[land.id]) return;
         Object.entries(land.items || {}).forEach(([pos, definition]) => {
           if (s.items[pos]) return;
-          const [c, r] = pos.split(',').map(Number); putItem(c, r, { ...definition, tier: definition.tier || 0 });
+          const [c, r] = pos.split(',').map(Number); putItem(c, r, { ...definition, tier: definition.tier || 0, ...(definition.t === 'obs' ? { mapPlaced: true } : {}) });
         });
       });
       FORMERLY_OPEN_LANDS.forEach((id) => {
@@ -1341,7 +1372,7 @@
     return {
       get state() { return s; },
       newState, load, serialize, tick, drain, marketInfo, buyMarket, refreshMarket, discoveryInfo, claimDiscovery, syncKillCoinAwards, killCoinInfo, deployKillBox, openKillBox,
-      getItem, isOwned, isFree, landOf, freeCells, ownedCells, nearestFree, nearestDropCell,
+      getItem, isOwned, isFree, canMoveItem, landOf, freeCells, ownedCells, nearestFree, nearestDropCell,
       findGroup, stackGroup, mergeInfo, mergeable, canGather, gatherItems, openCrate, openCrates, sortInfo, sortItems, ticketCount, cardOf, starsOf, cardInfo, useCard, exchangeCard, rectOf, landCells, canMoveBuilding, moveBuilding, tap, move, buyLand, landState, digInfo, digItem,
       startRecipe, claimRecipe, orderOf, hasShop, isRepaired, repairNeeds, repairBuilding, workerCap, rentWorker, crateCells, finishRecipeFree, recipeSkipInfo, skipRecipe, buildingAt, feedBuilding, startClear, clearSkipInfo, skipClear, regrowLeft, regrowSkipInfo, skipRegrow, chestInfo, openChest, claimRewardBubble,
       emitRaw: emit,

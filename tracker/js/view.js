@@ -1787,7 +1787,7 @@
       hideChest(); hideCard();
       pressed = { id: e.pointerId, sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, hit, moved: false, t0: performance.now(), touch: isTouch(e) };
       if (e.button === 0 || e.pointerType !== 'mouse') {
-        if (hit && hit.type === 'cell' && hit.item && hit.item.t !== 'obs' && hit.item.k !== 'woodbox' && !(hit.item.k === 'toolbox' && (hit.item.pend || engine.state.jobs.some((j) => j.c === hit.c && j.r === hit.r)))) pressed.dragCandidate = { c: hit.c, r: hit.r, item: hit.item };
+        if (hit && hit.type === 'cell' && engine.canMoveItem(hit.c, hit.r)) pressed.dragCandidate = { c: hit.c, r: hit.r, item: hit.item };
         if (hit && hit.type === 'cell' && engine.canGather(hit.c, hit.r)) {
           pressed.gatherCandidate = { c: hit.c, r: hit.r, id: hit.item.id };
           const pr = pressed;
@@ -1918,7 +1918,7 @@
       if (bk) drag.feedable = !!it && engine.isRepaired(bk) && it.t === 'ing' && BUILDINGS[bk].recipes.some((r) => r.needs[it.k]);
       else if (engine.isOwned(tc, tr)) {
         const other = engine.getItem(tc, tr);
-        drag.hoverOk = !other || other.t !== 'obs';
+        drag.hoverOk = !other || engine.canMoveItem(tc, tr);
       }
     }
     // 指を止めていても、持っている品物が画面端へ近づくとカメラを送る。
